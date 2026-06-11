@@ -7,29 +7,40 @@ void main() {
     await tester.pumpWidget(const MyApp());
 
     expect(find.text('Caravan Chaos'), findsOneWidget);
-    expect(find.text('Rut gio'), findsOneWidget);
-    expect(find.text('Seed moi'), findsOneWidget);
-    expect(find.text('Hop dong'), findsOneWidget);
+    expect(find.text('Rút gió'), findsOneWidget);
+    expect(find.text('Seed mới'), findsOneWidget);
+    expect(find.text('Hợp đồng'), findsOneWidget);
+    expect(find.text('VI'), findsOneWidget);
+    expect(find.text('EN'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Hop dong'));
-    await tester.tap(find.text('Hop dong'));
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draw wind'), findsOneWidget);
+    expect(find.text('Contracts'), findsOneWidget);
+
+    await tester.tap(find.text('VI'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Hợp đồng'));
+    await tester.tap(find.text('Hợp đồng'));
     await tester.pumpAndSettle();
 
     expect(find.text('Saffron Guild'), findsWidgets);
 
-    await tester.tap(find.text('Luot'));
+    await tester.tap(find.text('Lượt'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Rut gio'));
-    await tester.tap(find.text('Rut gio'));
+    await tester.ensureVisible(find.text('Rút gió'));
+    await tester.tap(find.text('Rút gió'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('dinar'), findsOneWidget);
 
-    await tester.tap(find.text('So cai'));
+    await tester.tap(find.text('Sổ cái'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('#'), findsWidgets);
-    expect(find.textContaining('Ngay 1'), findsWidgets);
+    expect(find.textContaining('Ngày 1'), findsWidgets);
   });
 }
