@@ -8,6 +8,7 @@ void main() {
 
     expect(find.text('Caravan Chaos'), findsOneWidget);
     expect(find.text('Rut gio'), findsOneWidget);
+    expect(find.text('Seed moi'), findsOneWidget);
     expect(find.text('Hop dong'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Hop dong'));
@@ -24,5 +25,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('dinar'), findsOneWidget);
+
+    await tester.tap(find.text('So cai'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('#'), findsWidgets);
+    expect(find.textContaining('Ngay 1'), findsWidgets);
   });
 }

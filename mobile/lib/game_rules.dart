@@ -3,6 +3,8 @@ import 'dart:math' as math;
 const int trackSize = 16;
 const int finishSpace = trackSize - 1;
 const int startingCoins = 24;
+const int maxLegContracts = 2;
+const int maxFinalContracts = 3;
 
 const List<String> gameCaravanIds = <String>[
   'saffron',
@@ -26,8 +28,25 @@ class Rival {
 
   final String name;
   int coins;
+  bool routeUsed = false;
   final List<Contract> legContracts = <Contract>[];
   final List<Contract> finalContracts = <Contract>[];
+}
+
+class LocalGameEvent {
+  const LocalGameEvent({
+    required this.seq,
+    required this.day,
+    required this.actor,
+    required this.kind,
+    required this.message,
+  });
+
+  final int seq;
+  final int day;
+  final String actor;
+  final String kind;
+  final String message;
 }
 
 class Standing {

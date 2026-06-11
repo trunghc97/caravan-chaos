@@ -137,14 +137,16 @@ class CaravanGamePage extends StatefulWidget {
 }
 
 class _CaravanGamePageState extends State<CaravanGamePage> {
-  final math.Random _random = math.Random();
+  late math.Random _random;
 
   int _activeTab = 0;
+  int _seed = 0;
   int _coins = startingCoins;
   int _day = 1;
   int _selectedSpace = 5;
   bool _raceOver = false;
   bool _routeUsed = false;
+  int _localSeq = 0;
   WindResult? _lastWind;
   String? _eventTitle;
   String? _eventText;
@@ -154,12 +156,13 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   List<Rival> _rivals = <Rival>[];
   final List<Contract> _legContracts = <Contract>[];
   final List<Contract> _finalContracts = <Contract>[];
-  final List<String> _log = <String>[];
+  final List<LocalGameEvent> _log = <LocalGameEvent>[];
   Map<int, RouteMarkType> _routeMarks = <int, RouteMarkType>{};
 
   @override
   void initState() {
     super.initState();
+    _seed = _nextSeed();
     _resetGame();
   }
 
@@ -447,6 +450,21 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                     label: 'Tuyen', value: _routeUsed ? 'Da dat' : 'Trong')),
           ],
         ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            Expanded(child: _MiniStat(label: 'Seed', value: '$_seed')),
+            const SizedBox(width: 8),
+            Expanded(
+                child: _MiniStat(label: 'Bot', value: '${_rivals.length}')),
+          ],
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () => setState(_startNewSeed),
+          icon: const Icon(Icons.shuffle_rounded),
+          label: const Text('Seed moi'),
+        ),
         const SizedBox(height: 10),
         Row(
           children: <Widget>[
@@ -593,19 +611,36 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             itemCount: _log.length,
             separatorBuilder: (_, __) => const SizedBox(height: 6),
             itemBuilder: (BuildContext context, int index) {
+              final LocalGameEvent event = _log[index];
               return Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: const Color(0x0F0F4C5C),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  _log[index],
-                  style: const TextStyle(
-                    color: Color(0xFF61717C),
-                    fontSize: 12,
-                    height: 1.3,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      '#${event.seq.toString().padLeft(3, '0')}  ${event.actor}  -  Ngay ${event.day}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF0F4C5C),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      event.message,
+                      style: const TextStyle(
+                        color: Color(0xFF61717C),
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
                 ),
               );
             },
@@ -615,13 +650,24 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
+  int _nextSeed() {
+    return DateTime.now().microsecondsSinceEpoch.remainder(999999);
+  }
+
+  void _startNewSeed() {
+    _seed = _nextSeed();
+    _resetGame();
+  }
+
   void _resetGame() {
+    _random = math.Random(_seed);
     _activeTab = 0;
     _coins = startingCoins;
     _day = 1;
     _selectedSpace = 5;
     _raceOver = false;
     _routeUsed = false;
+    _localSeq = 0;
     _lastWind = null;
     _eventTitle = null;
     _eventText = null;
@@ -636,7 +682,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       Rival(name: 'Bahir', coins: 22),
       Rival(name: 'Tala', coins: 22),
     ];
-    _addLog('Cho mo cong. Cac doan buon xuat phat tu o 0.');
+    _addLog('Cho mo cong. Cac doan buon xuat phat tu o 0. Seed $_seed.',
+        kind: 'game_reset');
     _aiPrepareLeg();
   }
 
@@ -660,12 +707,16 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _addLog(
       '${_caravan(caravanId).name} di $steps o'
       '${markText.isEmpty ? '' : ', $markText'}.',
+      actor: 'Ban',
+      kind: 'draw_wind',
     );
 
     if (_isRaceFinished()) {
       _resolveLeg(true);
     } else if (_bag.isEmpty) {
       _resolveLeg(false);
+    } else {
+      _runBotMarket();
     }
   }
 
@@ -681,13 +732,15 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       _eventText = 'Doan cuoi duoc day them 2 o.';
       final Standing last = _standings().last;
       _moveChain(last.id, 2);
-      _addLog('${_caravan(last.id).name} bam mui gia vi, tien 2 o.');
+      _addLog('${_caravan(last.id).name} bam mui gia vi, tien 2 o.',
+          actor: 'Ban', kind: 'event_card');
     } else if (eventIndex == 1) {
       _eventTitle = 'Tram ao anh';
       _eventText = 'Doan dan dau lui 1 o.';
       final Standing first = _standings().first;
       _moveChain(first.id, -1);
-      _addLog('${_caravan(first.id).name} vong qua ao anh, lui 1 o.');
+      _addLog('${_caravan(first.id).name} vong qua ao anh, lui 1 o.',
+          actor: 'Ban', kind: 'event_card');
     } else if (eventIndex == 2) {
       _eventTitle = 'Phien cho dem';
       _eventText = 'Ban nhan 4 dinar, doi thu gan nhat nhan 2.';
@@ -696,7 +749,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         ..sort((Rival a, Rival b) => b.coins.compareTo(a.coins));
       final Rival rival = sortedRivals.first;
       rival.coins += 2;
-      _addLog('Phien cho dem sinh loi: ban +4, ${rival.name} +2.');
+      _addLog('Phien cho dem sinh loi: ban +4, ${rival.name} +2.',
+          actor: 'Ban', kind: 'event_card');
     } else {
       _eventTitle = 'Duong kinh';
       _eventText = 'Mot o truoc doan cuoi thanh oc dao.';
@@ -704,15 +758,18 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       final int target = math.min(finishSpace - 1, last.position + 1);
       if (target > 0 && !_routeMarks.containsKey(target)) {
         _routeMarks[target] = RouteMarkType.boost;
-        _addLog('Duong kinh mo o o $target.');
+        _addLog('Duong kinh mo o o $target.', actor: 'Ban', kind: 'event_card');
       } else {
         _coins += 2;
-        _addLog('Duong kinh da dong, ban thu lai 2 dinar.');
+        _addLog('Duong kinh da dong, ban thu lai 2 dinar.',
+            actor: 'Ban', kind: 'event_card');
       }
     }
 
     if (_isRaceFinished()) {
       _resolveLeg(true);
+    } else {
+      _runBotMarket();
     }
   }
 
@@ -721,7 +778,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _routeUsed = true;
     _routeMarks[_selectedSpace] = type;
     _addLog(
-        '${type == RouteMarkType.boost ? 'Oc dao' : 'Ao anh'} dat o o $_selectedSpace.');
+      '${type == RouteMarkType.boost ? 'Oc dao' : 'Ao anh'} dat o o $_selectedSpace.',
+      actor: 'Ban',
+      kind: 'route_mark',
+    );
+    _runBotMarket();
   }
 
   void _signLegContract(String caravanId) {
@@ -730,7 +791,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     }
     _coins -= 2;
     _legContracts.add(Contract(caravanId, _day));
-    _addLog('Ban ky hop dong chang cho ${_caravan(caravanId).name}.');
+    _addLog('Ky hop dong chang cho ${_caravan(caravanId).name}.',
+        actor: 'Ban', kind: 'leg_contract');
+    _runBotMarket();
   }
 
   void _signFinalContract(String caravanId) {
@@ -739,7 +802,148 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     }
     _coins -= 1;
     _finalContracts.add(Contract(caravanId, _day));
-    _addLog('Ban giu hop dong chung cuoc cho ${_caravan(caravanId).name}.');
+    _addLog('Giu hop dong chung cuoc cho ${_caravan(caravanId).name}.',
+        actor: 'Ban', kind: 'final_contract');
+    _runBotMarket();
+  }
+
+  void _runBotMarket() {
+    if (_raceOver) {
+      return;
+    }
+
+    for (final Rival rival in _rivals) {
+      if (_random.nextDouble() > 0.58) {
+        continue;
+      }
+
+      final double roll = _random.nextDouble();
+      final List<bool Function()> actions = roll < 0.42
+          ? <bool Function()>[
+              () => _tryRivalLegContract(rival),
+              () => _tryRivalRouteMark(rival),
+              () => _tryRivalFinalContract(rival),
+            ]
+          : roll < 0.74
+              ? <bool Function()>[
+                  () => _tryRivalFinalContract(rival),
+                  () => _tryRivalRouteMark(rival),
+                  () => _tryRivalLegContract(rival),
+                ]
+              : <bool Function()>[
+                  () => _tryRivalRouteMark(rival),
+                  () => _tryRivalLegContract(rival),
+                  () => _tryRivalFinalContract(rival),
+                ];
+
+      for (final bool Function() action in actions) {
+        if (action()) {
+          break;
+        }
+      }
+    }
+  }
+
+  bool _tryRivalLegContract(Rival rival) {
+    if (rival.coins < 2 || rival.legContracts.length >= maxLegContracts) {
+      return false;
+    }
+
+    final List<Standing> candidates = _standings()
+        .take(4)
+        .where((Standing standing) => !rival.legContracts
+            .any((Contract contract) => contract.caravanId == standing.id))
+        .toList();
+    if (candidates.isEmpty) {
+      return false;
+    }
+
+    final Standing target = weightedPick(candidates, _random);
+    rival.coins -= 2;
+    rival.legContracts.add(Contract(target.id, _day));
+    _addLog('Ky hop dong chang cho ${_caravan(target.id).name}.',
+        actor: rival.name, kind: 'bot_leg_contract');
+    return true;
+  }
+
+  bool _tryRivalFinalContract(Rival rival) {
+    if (rival.coins < 1 || rival.finalContracts.length >= maxFinalContracts) {
+      return false;
+    }
+
+    final List<Standing> candidates = _standings()
+        .where((Standing standing) => !rival.finalContracts
+            .any((Contract contract) => contract.caravanId == standing.id))
+        .toList();
+    if (candidates.isEmpty) {
+      return false;
+    }
+
+    final Standing target = weightedPick(candidates, _random);
+    rival.coins -= 1;
+    rival.finalContracts.add(Contract(target.id, _day));
+    _addLog('Giu hop dong chung cuoc cho ${_caravan(target.id).name}.',
+        actor: rival.name, kind: 'bot_final_contract');
+    return true;
+  }
+
+  bool _tryRivalRouteMark(Rival rival) {
+    if (rival.routeUsed || rival.coins < 1) {
+      return false;
+    }
+
+    final List<Standing> standings = _standings();
+    final Standing? favorite = _standingForRivalTarget(rival, standings);
+    final RouteMarkType type =
+        favorite == null ? RouteMarkType.snare : RouteMarkType.boost;
+    final int preferred =
+        favorite == null ? standings.first.position + 1 : favorite.position + 1;
+    final int? space = _nearestOpenRouteSpace(preferred);
+    if (space == null) {
+      return false;
+    }
+
+    rival.coins -= 1;
+    rival.routeUsed = true;
+    _routeMarks[space] = type;
+    _addLog(
+        '${type == RouteMarkType.boost ? 'Oc dao' : 'Ao anh'} dat o o $space.',
+        actor: rival.name,
+        kind: 'bot_route_mark');
+    return true;
+  }
+
+  Standing? _standingForRivalTarget(Rival rival, List<Standing> standings) {
+    final List<Contract> targets = <Contract>[
+      ...rival.legContracts,
+      ...rival.finalContracts,
+    ];
+    for (final Contract contract in targets) {
+      for (final Standing standing in standings) {
+        if (standing.id == contract.caravanId) {
+          return standing;
+        }
+      }
+    }
+    return null;
+  }
+
+  int? _nearestOpenRouteSpace(int preferred) {
+    final int center = preferred.clamp(1, finishSpace - 1).toInt();
+    for (int offset = 0; offset < finishSpace; offset++) {
+      final List<int> candidates = <int>[
+        center + offset,
+        center - offset,
+      ];
+      for (final int candidate in candidates) {
+        if (candidate > 0 &&
+            candidate < finishSpace &&
+            !_routeMarks.containsKey(candidate)) {
+          return candidate;
+        }
+      }
+    }
+    return null;
   }
 
   String _moveChain(String caravanId, int delta) {
@@ -765,9 +969,10 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
     if (playerPayout > 0) {
       _coins += playerPayout;
-      _addLog('Hop dong chang tra $playerPayout dinar cho ban.');
+      _addLog('Hop dong chang tra $playerPayout dinar cho ban.',
+          kind: 'leg_payout');
     } else if (_legContracts.isNotEmpty) {
-      _addLog('Hop dong chang cua ban khong trung.');
+      _addLog('Hop dong chang cua ban khong trung.', kind: 'leg_payout');
     }
 
     for (final Rival rival in _rivals) {
@@ -782,7 +987,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       _resolveFinalContracts(leader, second, third);
       _raceOver = true;
       _activeTab = 2;
-      _addLog('${_caravan(leader.id).name} cham cong dich. Cuoc dua ket thuc.');
+      _addLog('${_caravan(leader.id).name} cham cong dich. Cuoc dua ket thuc.',
+          kind: 'race_finished');
       return;
     }
 
@@ -796,9 +1002,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _legContracts.clear();
     for (final Rival rival in _rivals) {
       rival.legContracts.clear();
+      rival.routeUsed = false;
     }
     _aiPrepareLeg();
-    _addLog('Ngay $_day bat dau. Hop dong chang duoc mo lai.');
+    _addLog('Ngay $_day bat dau. Hop dong chang duoc mo lai.',
+        kind: 'leg_started');
   }
 
   void _resolveFinalContracts(
@@ -809,7 +1017,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           total + finalPayout(contract.caravanId, leader, second, third),
     );
     _coins += playerPayout;
-    _addLog('Hop dong chung cuoc tra $playerPayout dinar cho ban.');
+    _addLog('Hop dong chung cuoc tra $playerPayout dinar cho ban.',
+        kind: 'final_payout');
 
     for (final Rival rival in _rivals) {
       rival.coins += rival.finalContracts.fold<int>(
@@ -830,7 +1039,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         rival.legContracts.add(Contract(target.id, _day));
       }
 
-      if (rival.finalContracts.length < 2 &&
+      if (rival.finalContracts.length < maxFinalContracts &&
           rival.coins >= 1 &&
           _random.nextDouble() > 0.42) {
         final Standing target = weightedPick(standings, _random);
@@ -847,7 +1056,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   bool _canSignLeg(String caravanId) {
     return !_raceOver &&
         _coins >= 2 &&
-        _legContracts.length < 2 &&
+        _legContracts.length < maxLegContracts &&
         !_legContracts
             .any((Contract contract) => contract.caravanId == caravanId);
   }
@@ -855,7 +1064,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   bool _canSignFinal(String caravanId) {
     return !_raceOver &&
         _coins >= 1 &&
-        _finalContracts.length < 3 &&
+        _finalContracts.length < maxFinalContracts &&
         !_finalContracts
             .any((Contract contract) => contract.caravanId == caravanId);
   }
@@ -881,8 +1090,22 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     return '${scores.first.name} thang phien cho voi ${scores.first.coins} dinar.';
   }
 
-  void _addLog(String message) {
-    _log.insert(0, message);
+  void _addLog(
+    String message, {
+    String actor = 'He thong',
+    String kind = 'note',
+  }) {
+    _localSeq += 1;
+    _log.insert(
+      0,
+      LocalGameEvent(
+        seq: _localSeq,
+        day: _day,
+        actor: actor,
+        kind: kind,
+        message: message,
+      ),
+    );
     if (_log.length > 30) {
       _log.removeRange(30, _log.length);
     }

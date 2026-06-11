@@ -19,4 +19,6 @@ flutter run
 - Chain movement when a caravan pulls anything stacked above it.
 - Oasis and mirage route marks.
 - Stage and final contracts.
-- Simple rival traders and ledger.
+- Rival traders that react with contracts and route marks during solo play.
+- Ordered local event ledger that mirrors the future realtime `serverSeq` shape.
+- Replayable solo seeds for debugging local playtests.
