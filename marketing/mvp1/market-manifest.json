@@ -1,0 +1,32 @@
+{
+  "market": "MVP1",
+  "status": "ready_for_upload",
+  "appName": "Caravan Chaos",
+  "version": "1.0.0+1",
+  "assets": {
+    "icon": "caravan-chaos-icon-1024.png",
+    "background": "caravan-chaos-background-1920x1080.png",
+    "posterAd": "caravan-chaos-poster-ad-1080x1920.png",
+    "posterArtClean": "caravan-chaos-poster-art-1080x1920.png",
+    "sources": [
+      "source/generated-icon-source.png",
+      "source/generated-background-source.png",
+      "source/generated-poster-source.png"
+    ]
+  },
+  "listing": {
+    "vi": {
+      "title": "Caravan Chaos",
+      "tagline": "Đua lữ hành. Đặt cược. Lật kèo phiên chợ.",
+      "shortDescription": "Game đua lữ hành fantasy nơi mỗi lá gió, hợp đồng và dấu mốc đều có thể xoay chiều phiên chợ.",
+      "releaseNote": "MVP1 tập trung vào vòng chơi solo local: 5 đoàn lữ hành, bài gió, biến cố, dấu đường, hợp đồng chặng và hợp đồng chung cuộc."
+    },
+    "en": {
+      "title": "Caravan Chaos",
+      "tagline": "Race caravans, sign risky contracts, and swing the market.",
+      "shortDescription": "A fantasy desert race-betting game where wind seals, route marks, and contracts turn every market day into a gamble.",
+      "releaseNote": "MVP1 focuses on the local solo loop: 5 caravans, wind draws, event cards, route marks, leg contracts, and final contracts."
+    }
+  },
+  "uploadNotes": "No active marketplace connector was available in this Codex session, so this folder is staged as the MVP1 market-ready pack."
+}

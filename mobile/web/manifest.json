@@ -1,11 +1,11 @@
 {
-    "name": "caravan_chaos",
-    "short_name": "caravan_chaos",
+    "name": "Caravan Chaos",
+    "short_name": "Caravan",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F4C5C",
+    "theme_color": "#0F4C5C",
+    "description": "Race fantasy caravans, sign contracts, and swing market odds in a local solo prototype.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
