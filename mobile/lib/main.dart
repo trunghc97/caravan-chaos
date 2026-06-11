@@ -110,23 +110,25 @@ const Map<int, String> routeLabels = <int, String>{
   15: 'Dich',
 };
 
-const List<int> visualRouteOrder = <int>[
-  15,
-  14,
-  13,
-  12,
-  8,
-  9,
-  10,
-  11,
-  7,
-  6,
-  5,
-  4,
-  0,
-  1,
-  2,
-  3,
+const int boardGridSize = 5;
+
+const List<_BoardSlot> _loopBoardSlots = <_BoardSlot>[
+  _BoardSlot(space: 0, row: 4, column: 0),
+  _BoardSlot(space: 1, row: 4, column: 1),
+  _BoardSlot(space: 2, row: 4, column: 2),
+  _BoardSlot(space: 3, row: 4, column: 3),
+  _BoardSlot(space: 4, row: 4, column: 4),
+  _BoardSlot(space: 5, row: 3, column: 4),
+  _BoardSlot(space: 6, row: 2, column: 4),
+  _BoardSlot(space: 7, row: 1, column: 4),
+  _BoardSlot(space: 8, row: 0, column: 4),
+  _BoardSlot(space: 9, row: 0, column: 3),
+  _BoardSlot(space: 10, row: 0, column: 2),
+  _BoardSlot(space: 11, row: 0, column: 1),
+  _BoardSlot(space: 12, row: 0, column: 0),
+  _BoardSlot(space: 13, row: 1, column: 0),
+  _BoardSlot(space: 14, row: 2, column: 0),
+  _BoardSlot(space: 15, row: 3, column: 0),
 ];
 
 const Color _ink = Color(0xFF17202A);
@@ -192,7 +194,16 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
                 final bool wide = constraints.maxWidth >= 820;
-                final Widget board = _buildBoard(leader);
+                final double? boardMaxWidth = wide
+                    ? math.max(
+                        440,
+                        math.min(620, constraints.maxHeight - 200),
+                      )
+                    : null;
+                final Widget board = _buildBoard(
+                  leader,
+                  maxWidth: boardMaxWidth,
+                );
                 final Widget controls = _buildControls();
 
                 return SingleChildScrollView(
@@ -208,7 +219,12 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
-                                Expanded(child: board),
+                                Expanded(
+                                  child: Align(
+                                    alignment: Alignment.topLeft,
+                                    child: board,
+                                  ),
+                                ),
                                 const SizedBox(width: 12),
                                 SizedBox(width: 390, child: controls),
                               ],
@@ -351,8 +367,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
-  Widget _buildBoard(Caravan leader) {
-    return _Panel(
+  Widget _buildBoard(Caravan leader, {double? maxWidth}) {
+    final Widget board = _Panel(
       padding: EdgeInsets.zero,
       child: Column(
         children: <Widget>[
@@ -392,7 +408,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
@@ -402,42 +418,63 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             ),
             child: AspectRatio(
               aspectRatio: 1,
-              child: Stack(
-                children: <Widget>[
-                  const Positioned.fill(
-                    child: CustomPaint(painter: _TradeRoutePainter()),
-                  ),
-                  GridView.builder(
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: trackSize,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemBuilder: (BuildContext context, int visualIndex) {
-                      final int spaceIndex = visualRouteOrder[visualIndex];
-                      return _SpaceTile(
-                        index: spaceIndex,
-                        label: routeLabels[spaceIndex] ?? 'O $spaceIndex',
-                        stack: _spaces[spaceIndex],
-                        routeMark: _routeMarks[spaceIndex],
-                        selected: _selectedSpace == spaceIndex,
-                        isStart: spaceIndex == 0,
-                        isFinish: spaceIndex == finishSpace,
-                        onTap: () =>
-                            setState(() => _selectedSpace = spaceIndex),
-                        caravanFor: _caravan,
-                      );
-                    },
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double gap = constraints.maxWidth < 460 ? 6 : 8;
+                  final double cell =
+                      (constraints.maxWidth - gap * (boardGridSize - 1)) /
+                          boardGridSize;
+                  final double centerOffset = cell + gap;
+                  final double centerSize = cell * 3 + gap * 2;
+
+                  return Stack(
+                    children: <Widget>[
+                      const Positioned.fill(
+                        child: CustomPaint(painter: _TradeRoutePainter()),
+                      ),
+                      Positioned(
+                        left: centerOffset,
+                        top: centerOffset,
+                        width: centerSize,
+                        height: centerSize,
+                        child: _buildBoardActionHub(),
+                      ),
+                      for (final _BoardSlot slot in _loopBoardSlots)
+                        Positioned(
+                          left: slot.column * (cell + gap),
+                          top: slot.row * (cell + gap),
+                          width: cell,
+                          height: cell,
+                          child: _SpaceTile(
+                            index: slot.space,
+                            label: routeLabels[slot.space] ?? 'O ${slot.space}',
+                            stack: _spaces[slot.space],
+                            routeMark: _routeMarks[slot.space],
+                            selected: _selectedSpace == slot.space,
+                            isStart: slot.space == 0,
+                            isFinish: slot.space == finishSpace,
+                            onTap: () =>
+                                setState(() => _selectedSpace = slot.space),
+                            caravanFor: _caravan,
+                          ),
+                        ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
         ],
       ),
+    );
+
+    if (maxWidth == null) {
+      return board;
+    }
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: board,
     );
   }
 
@@ -498,6 +535,152 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
+  Widget _buildBoardActionHub() {
+    final String selectedLabel =
+        routeLabels[_selectedSpace] ?? 'O $_selectedSpace';
+    final bool routeDisabled = _routeMarkDisabled;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _paper.withOpacity(0.96),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x55B98543), width: 1.2),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            blurRadius: 22,
+            color: Color(0x2B17202A),
+            offset: Offset(0, 12),
+          ),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final bool compact = constraints.maxWidth < 290;
+          final double buttonHeight = compact ? 34 : 40;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.explore_rounded, color: _spice, size: 18),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Lenh thuong lo',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _ink,
+                        fontSize: compact ? 12 : 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: compact ? 6 : 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _BoardMiniStat(
+                      label: 'O chon',
+                      value: selectedLabel,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _BoardMiniStat(
+                      label: 'Gio',
+                      value: '${_bag.length}/5',
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: compact ? 7 : 9),
+              SizedBox(
+                height: buttonHeight + 6,
+                child: FilledButton.icon(
+                  onPressed: _raceOver ? null : () => setState(_drawWind),
+                  icon: const Icon(Icons.air_rounded),
+                  label: const Text('Rut gio'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _spice,
+                    foregroundColor: Colors.white,
+                    textStyle: TextStyle(
+                      fontSize: compact ? 13 : 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: compact ? 6 : 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _BoardActionButton(
+                      icon: Icons.auto_awesome_rounded,
+                      label: 'Su kien',
+                      color: _marketTeal,
+                      height: buttonHeight,
+                      onPressed: _raceOver || _coins < 2
+                          ? null
+                          : () => setState(_drawEvent),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _BoardActionButton(
+                      icon: Icons.restart_alt_rounded,
+                      label: 'Lai',
+                      color: _marketTeal,
+                      height: buttonHeight,
+                      onPressed: () => setState(_resetGame),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: compact ? 6 : 8),
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _BoardActionButton(
+                      icon: Icons.arrow_upward_rounded,
+                      label: 'Oc dao',
+                      color: _oasisGreen,
+                      height: buttonHeight,
+                      onPressed: routeDisabled
+                          ? null
+                          : () => setState(
+                              () => _placeRouteMark(RouteMarkType.boost)),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _BoardActionButton(
+                      icon: Icons.arrow_downward_rounded,
+                      label: 'Ao anh',
+                      color: _spice,
+                      height: buttonHeight,
+                      onPressed: routeDisabled
+                          ? null
+                          : () => setState(
+                              () => _placeRouteMark(RouteMarkType.snare)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   ButtonStyle _marketButtonStyle({Color color = _marketTeal}) {
     return OutlinedButton.styleFrom(
       foregroundColor: color,
@@ -512,53 +695,12 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   Widget _buildActionTab() {
     final String selectedLabel =
         routeLabels[_selectedSpace] ?? 'O $_selectedSpace';
-    final bool routeDisabled = _raceOver ||
-        _routeUsed ||
-        _coins < 1 ||
-        _selectedSpace <= 0 ||
-        _selectedSpace >= finishSpace ||
-        _routeMarks.containsKey(_selectedSpace);
 
     return Column(
       key: const ValueKey<int>(0),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         if (_raceOver) _EndBanner(summary: _finalSummary()),
-        FilledButton.icon(
-          onPressed: _raceOver ? null : () => setState(_drawWind),
-          icon: const Icon(Icons.air_rounded),
-          label: const Text('Rut gio'),
-          style: FilledButton.styleFrom(
-            backgroundColor: _spice,
-            foregroundColor: Colors.white,
-            minimumSize: const Size.fromHeight(48),
-            textStyle: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ),
-        const SizedBox(height: 9),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed:
-                    _raceOver || _coins < 2 ? null : () => setState(_drawEvent),
-                icon: const Icon(Icons.auto_awesome_rounded),
-                label: const Text('Su kien'),
-                style: _marketButtonStyle(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => setState(_resetGame),
-                icon: const Icon(Icons.restart_alt_rounded),
-                label: const Text('Choi lai'),
-                style: _marketButtonStyle(),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
         Row(
           children: <Widget>[
             Expanded(child: _MiniStat(label: 'O chon', value: selectedLabel)),
@@ -582,36 +724,23 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           ],
         ),
         const SizedBox(height: 8),
-        OutlinedButton.icon(
-          onPressed: () => setState(_startNewSeed),
-          icon: const Icon(Icons.shuffle_rounded),
-          label: const Text('Seed moi'),
-          style: _marketButtonStyle(),
-        ),
-        const SizedBox(height: 10),
         Row(
           children: <Widget>[
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: routeDisabled
-                    ? null
-                    : () =>
-                        setState(() => _placeRouteMark(RouteMarkType.boost)),
-                icon: const Icon(Icons.arrow_upward_rounded),
-                label: const Text('Oc dao'),
-                style: _marketButtonStyle(color: _oasisGreen),
+                onPressed: () => setState(_startNewSeed),
+                icon: const Icon(Icons.shuffle_rounded),
+                label: const Text('Seed moi'),
+                style: _marketButtonStyle(),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: routeDisabled
-                    ? null
-                    : () =>
-                        setState(() => _placeRouteMark(RouteMarkType.snare)),
-                icon: const Icon(Icons.arrow_downward_rounded),
-                label: const Text('Ao anh'),
-                style: _marketButtonStyle(color: _spice),
+                onPressed: () => setState(_resetGame),
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: const Text('Choi lai'),
+                style: _marketButtonStyle(),
               ),
             ),
           ],
@@ -628,6 +757,15 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         ],
       ],
     );
+  }
+
+  bool get _routeMarkDisabled {
+    return _raceOver ||
+        _routeUsed ||
+        _coins < 1 ||
+        _selectedSpace <= 0 ||
+        _selectedSpace >= finishSpace ||
+        _routeMarks.containsKey(_selectedSpace);
   }
 
   Widget _buildLastWind() {
@@ -1250,6 +1388,18 @@ class _ScoreLine {
   final String detail;
 }
 
+class _BoardSlot {
+  const _BoardSlot({
+    required this.space,
+    required this.row,
+    required this.column,
+  });
+
+  final int space;
+  final int row;
+  final int column;
+}
+
 class _DesertBackdropPainter extends CustomPainter {
   const _DesertBackdropPainter();
 
@@ -1305,24 +1455,21 @@ class _TradeRoutePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final List<Offset> centers = <Offset>[];
-    final double cellWidth = size.width / 4;
-    final double cellHeight = size.height / 4;
-
-    for (int space = 0; space < trackSize; space++) {
-      final int visualIndex = visualRouteOrder.indexOf(space);
-      final int row = visualIndex ~/ 4;
-      final int col = visualIndex % 4;
-      centers.add(Offset(
-        (col + 0.5) * cellWidth,
-        (row + 0.5) * cellHeight,
-      ));
-    }
+    final double gap = size.width < 460 ? 6 : 8;
+    final double cell =
+        (size.width - gap * (boardGridSize - 1)) / boardGridSize;
+    final List<Offset> centers = _loopBoardSlots.map((_BoardSlot slot) {
+      return Offset(
+        slot.column * (cell + gap) + cell / 2,
+        slot.row * (cell + gap) + cell / 2,
+      );
+    }).toList();
 
     final Path path = Path()..moveTo(centers.first.dx, centers.first.dy);
     for (final Offset center in centers.skip(1)) {
       path.lineTo(center.dx, center.dy);
     }
+    path.close();
 
     final Paint shadow = Paint()
       ..color = const Color(0x33B98543)
@@ -1685,6 +1832,92 @@ class _RouteBadge extends StatelessWidget {
           color: Colors.white,
           fontSize: 10,
           fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _BoardMiniStat extends StatelessWidget {
+  const _BoardMiniStat({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1C6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x33B98543)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _muted,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BoardActionButton extends StatelessWidget {
+  const _BoardActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.height,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final double height;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 17),
+        label: FittedBox(child: Text(label)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: color,
+          backgroundColor: const Color(0xFFFFF9EA),
+          side: BorderSide(color: color.withOpacity(0.42)),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );
