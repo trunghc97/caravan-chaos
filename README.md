@@ -4,13 +4,34 @@ Monorepo for a mobile race-betting game set on a fantasy desert trade route.
 
 ## Structure
 
-- `mobile/` - Flutter app and plain Dart game rules.
+- `mobile/` - Flutter app and plain Dart game rules for MVP1 local solo.
 - `backend/` - Go API and realtime service scaffold.
 - `db/` - PostgreSQL migrations and schema notes.
-- `docs/` - architecture notes, including `docs/BACKEND_PLAN.md`.
+- `docs/` - architecture notes, including `docs/BACKEND_PLAN.md` and `docs/MVP1.md`.
 - `prototype-web/` - legacy HTML prototype kept for reference.
 
-## Mobile
+## Prerequisites
+
+- Flutter 3.13+ with Dart 3.1+.
+- Go 1.22+.
+- Docker Desktop or compatible `docker compose` for local Postgres and Redis.
+
+## Quick Start
+
+From the repo root:
+
+```sh
+docker compose up -d postgres redis
+```
+
+Start the backend:
+
+```sh
+cd backend
+go run ./cmd/server
+```
+
+In another terminal, start the Flutter app:
 
 ```sh
 cd mobile
@@ -18,32 +39,68 @@ flutter pub get
 flutter run
 ```
 
-Tests:
+The backend listens on `http://localhost:8080` by default. Check it with:
+
+```sh
+curl http://localhost:8080/healthz
+```
+
+## Run Mobile Only
+
+MVP1 is playable offline as a Flutter-only solo prototype.
 
 ```sh
 cd mobile
+flutter pub get
+flutter run
+```
+
+Run mobile checks:
+
+```sh
+cd mobile
+flutter analyze
 flutter test
 ```
 
-## Backend
+## Run Backend Only
 
 ```sh
 cd backend
 go run ./cmd/server
 ```
 
-The backend currently exposes `GET /healthz` plus room/realtime stubs that match the planned server-authoritative direction.
+Environment variables:
+
+- `HTTP_ADDR`, default `:8080`.
+- `DATABASE_URL`, default `postgres://caravan:caravan@localhost:5432/caravan_chaos?sslmode=disable`.
+- `REDIS_ADDR`, default `localhost:6379`.
+
+Run backend tests:
+
+```sh
+cd backend
+GOMAXPROCS=1 go test -p 1 ./...
+```
 
 ## Database
 
-Start local dependencies from the repo root:
+Local services are defined in `docker-compose.yml`.
 
 ```sh
 docker compose up -d postgres redis
+docker compose down
 ```
 
-Initial schema lives in `db/migrations/000001_core_schema.sql`.
+Initial schema is loaded from `db/migrations/000001_core_schema.sql` when the Postgres volume is first created. To reset local database state:
 
-## Backend Direction
+```sh
+docker compose down -v
+docker compose up -d postgres redis
+```
 
-See `docs/BACKEND_PLAN.md`. Recommended v1 stack: Flutter client, Go backend, WebSocket realtime, PostgreSQL for durable game records, Redis for presence and horizontal pub/sub when scaling beyond one instance.
+## Current MVP
+
+MVP1 is local solo. See `docs/MVP1.md`.
+
+Backend direction and future realtime architecture are documented in `docs/BACKEND_PLAN.md`.
