@@ -1,0 +1,6 @@
+package com.caravanchaos.caravan_chaos
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity() {
+}
