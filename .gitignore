@@ -55,3 +55,6 @@ backend/coverage.out
 # Local data
 *.sqlite
 *.db
+
+# Local screenshots and visual QA artifacts
+screenshots/

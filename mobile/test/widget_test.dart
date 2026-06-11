@@ -15,7 +15,7 @@ void main() {
     await tester.tap(find.text('Hop dong'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Saffron Guild'), findsOneWidget);
+    expect(find.text('Saffron Guild'), findsWidgets);
 
     await tester.tap(find.text('Luot'));
     await tester.pumpAndSettle();

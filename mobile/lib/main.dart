@@ -129,6 +129,16 @@ const List<int> visualRouteOrder = <int>[
   3,
 ];
 
+const Color _ink = Color(0xFF17202A);
+const Color _muted = Color(0xFF66737A);
+const Color _marketTeal = Color(0xFF0F4C5C);
+const Color _deepIndigo = Color(0xFF263858);
+const Color _spice = Color(0xFFE4572E);
+const Color _sunGold = Color(0xFFF2C14E);
+const Color _oasisGreen = Color(0xFF2D936C);
+const Color _sandLight = Color(0xFFF9E8C7);
+const Color _paper = Color(0xFFFFFAEE);
+
 class CaravanGamePage extends StatefulWidget {
   const CaravanGamePage({super.key});
 
@@ -172,181 +182,257 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     final Caravan leader = _caravan(standings.first.id);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F4EC),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final bool wide = constraints.maxWidth >= 820;
-            final Widget board = _buildBoard(leader);
-            final Widget controls = _buildControls();
+      backgroundColor: _sandLight,
+      body: Stack(
+        children: <Widget>[
+          const Positioned.fill(
+            child: CustomPaint(painter: _DesertBackdropPainter()),
+          ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool wide = constraints.maxWidth >= 820;
+                final Widget board = _buildBoard(leader);
+                final Widget controls = _buildControls();
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(14),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
-                  child: Column(
-                    children: <Widget>[
-                      _buildHeader(),
-                      const SizedBox(height: 12),
-                      if (wide)
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Expanded(child: board),
-                            const SizedBox(width: 12),
-                            SizedBox(width: 390, child: controls),
-                          ],
-                        )
-                      else
-                        Column(
-                          children: <Widget>[
-                            board,
-                            const SizedBox(height: 12),
-                            controls,
-                          ],
-                        ),
-                    ],
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(14),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1120),
+                      child: Column(
+                        children: <Widget>[
+                          _buildHeader(),
+                          const SizedBox(height: 12),
+                          if (wide)
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Expanded(child: board),
+                                const SizedBox(width: 12),
+                                SizedBox(width: 390, child: controls),
+                              ],
+                            )
+                          else
+                            Column(
+                              children: <Widget>[
+                                board,
+                                const SizedBox(height: 12),
+                                controls,
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildHeader() {
-    return Row(
-      children: <Widget>[
-        Container(
-          height: 48,
-          width: 48,
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F4C5C),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(
-                blurRadius: 24,
-                color: Color(0x260F4C5C),
-                offset: Offset(0, 10),
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _paper.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x33B98543)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            blurRadius: 28,
+            color: Color(0x2917202A),
+            offset: Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Row(
+        children: <Widget>[
+          Container(
+            height: 50,
+            width: 50,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[_marketTeal, _deepIndigo],
               ),
-            ],
-          ),
-          child: const Icon(
-            Icons.local_shipping_rounded,
-            color: Colors.white,
-            size: 27,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const Text(
-                'Caravan Chaos',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const <BoxShadow>[
+                BoxShadow(
+                  blurRadius: 20,
+                  color: Color(0x330F4C5C),
+                  offset: Offset(0, 8),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _raceOver ? 'Ket thuc' : 'Ngay $_day',
-                style: const TextStyle(
-                  color: Color(0xFF61717C),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+              ],
+            ),
+            child: const Icon(
+              Icons.local_shipping_rounded,
+              color: _sunGold,
+              size: 28,
+            ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0x1F17202A)),
-          ),
-          child: Row(
-            children: <Widget>[
-              Text(
-                '$_coins',
-                style: const TextStyle(
-                  color: Color(0xFF0F4C5C),
-                  fontSize: 23,
-                  fontWeight: FontWeight.w900,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'Caravan Chaos',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 5),
-              const Text(
-                'dinar',
-                style: TextStyle(
-                  color: Color(0xFF61717C),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w900,
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 5,
+                  children: <Widget>[
+                    _HeaderChip(
+                      icon: Icons.wb_sunny_rounded,
+                      label: _raceOver ? 'Ket thuc' : 'Ngay $_day',
+                    ),
+                    _HeaderChip(
+                      icon: Icons.air_rounded,
+                      label: '${_bag.length}/5 gio',
+                    ),
+                    const _HeaderChip(
+                      icon: Icons.flag_rounded,
+                      label: 'Dich 15',
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3C7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0x55B98543)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.toll_rounded, color: _spice, size: 19),
+                const SizedBox(width: 6),
+                Text(
+                  '$_coins',
+                  style: const TextStyle(
+                    color: _marketTeal,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                const Text(
+                  'dinar',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildBoard(Caravan leader) {
     return _Panel(
+      padding: EdgeInsets.zero,
       child: Column(
         children: <Widget>[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: <Color>[Color(0xFF0F4C5C), Color(0xFF3D5A80)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: <Color>[_marketTeal, _deepIndigo],
               ),
             ),
             child: Row(
               children: <Widget>[
                 Expanded(
-                    child: _StripStat(label: 'Dan dau', value: leader.name)),
+                  child: _StripStat(
+                    label: 'Dan dau',
+                    value: leader.name,
+                    icon: leader.icon,
+                  ),
+                ),
                 Expanded(
-                    child: _StripStat(label: 'Gio', value: '${_bag.length}/5')),
-                const Expanded(child: _StripStat(label: 'Dich', value: 'O 15')),
+                  child: _StripStat(
+                    label: 'Phong an',
+                    value: '${_bag.length}/5',
+                    icon: Icons.air_rounded,
+                  ),
+                ),
+                const Expanded(
+                  child: _StripStat(
+                    label: 'Cong dich',
+                    value: 'O 15',
+                    icon: Icons.flag_rounded,
+                  ),
+                ),
               ],
             ),
           ),
-          Padding(
+          Container(
             padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[Color(0xFFFFE2A6), Color(0xFFF5C16F)],
+              ),
+            ),
             child: AspectRatio(
               aspectRatio: 1,
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: trackSize,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemBuilder: (BuildContext context, int visualIndex) {
-                  final int spaceIndex = visualRouteOrder[visualIndex];
-                  return _SpaceTile(
-                    index: spaceIndex,
-                    label: routeLabels[spaceIndex] ?? 'O $spaceIndex',
-                    stack: _spaces[spaceIndex],
-                    routeMark: _routeMarks[spaceIndex],
-                    selected: _selectedSpace == spaceIndex,
-                    isStart: spaceIndex == 0,
-                    isFinish: spaceIndex == finishSpace,
-                    onTap: () => setState(() => _selectedSpace = spaceIndex),
-                    caravanFor: _caravan,
-                  );
-                },
+              child: Stack(
+                children: <Widget>[
+                  const Positioned.fill(
+                    child: CustomPaint(painter: _TradeRoutePainter()),
+                  ),
+                  GridView.builder(
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: trackSize,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemBuilder: (BuildContext context, int visualIndex) {
+                      final int spaceIndex = visualRouteOrder[visualIndex];
+                      return _SpaceTile(
+                        index: spaceIndex,
+                        label: routeLabels[spaceIndex] ?? 'O $spaceIndex',
+                        stack: _spaces[spaceIndex],
+                        routeMark: _routeMarks[spaceIndex],
+                        selected: _selectedSpace == spaceIndex,
+                        isStart: spaceIndex == 0,
+                        isFinish: spaceIndex == finishSpace,
+                        onTap: () =>
+                            setState(() => _selectedSpace = spaceIndex),
+                        caravanFor: _caravan,
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
@@ -360,21 +446,42 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       child: Column(
         children: <Widget>[
           Padding(
-            padding: const EdgeInsets.all(8),
-            child: SegmentedButton<int>(
-              segments: const <ButtonSegment<int>>[
-                ButtonSegment<int>(value: 0, label: Text('Luot')),
-                ButtonSegment<int>(value: 1, label: Text('Hop dong')),
-                ButtonSegment<int>(value: 2, label: Text('So cai')),
-              ],
-              selected: <int>{_activeTab},
-              onSelectionChanged: (Set<int> value) {
-                setState(() => _activeTab = value.first);
-              },
-              showSelectedIcon: false,
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
+                      primary: _marketTeal,
+                      secondaryContainer: const Color(0xFFFFE8AF),
+                      onSecondaryContainer: _ink,
+                    ),
+              ),
+              child: SegmentedButton<int>(
+                segments: const <ButtonSegment<int>>[
+                  ButtonSegment<int>(
+                    value: 0,
+                    icon: Icon(Icons.touch_app_rounded),
+                    label: Text('Luot'),
+                  ),
+                  ButtonSegment<int>(
+                    value: 1,
+                    icon: Icon(Icons.receipt_long_rounded),
+                    label: Text('Hop dong'),
+                  ),
+                  ButtonSegment<int>(
+                    value: 2,
+                    icon: Icon(Icons.leaderboard_rounded),
+                    label: Text('So cai'),
+                  ),
+                ],
+                selected: <int>{_activeTab},
+                onSelectionChanged: (Set<int> value) {
+                  setState(() => _activeTab = value.first);
+                },
+                showSelectedIcon: false,
+              ),
             ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, color: Color(0x22B98543)),
           Padding(
             padding: const EdgeInsets.all(12),
             child: AnimatedSwitcher(
@@ -388,6 +495,17 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           ),
         ],
       ),
+    );
+  }
+
+  ButtonStyle _marketButtonStyle({Color color = _marketTeal}) {
+    return OutlinedButton.styleFrom(
+      foregroundColor: color,
+      side: BorderSide(color: color.withOpacity(0.45)),
+      backgroundColor: const Color(0xFFFFF9EA),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      textStyle: const TextStyle(fontWeight: FontWeight.w900),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
 
@@ -411,6 +529,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           icon: const Icon(Icons.air_rounded),
           label: const Text('Rut gio'),
           style: FilledButton.styleFrom(
+            backgroundColor: _spice,
+            foregroundColor: Colors.white,
             minimumSize: const Size.fromHeight(48),
             textStyle: const TextStyle(fontWeight: FontWeight.w900),
           ),
@@ -424,6 +544,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                     _raceOver || _coins < 2 ? null : () => setState(_drawEvent),
                 icon: const Icon(Icons.auto_awesome_rounded),
                 label: const Text('Su kien'),
+                style: _marketButtonStyle(),
               ),
             ),
             const SizedBox(width: 8),
@@ -432,6 +553,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                 onPressed: () => setState(_resetGame),
                 icon: const Icon(Icons.restart_alt_rounded),
                 label: const Text('Choi lai'),
+                style: _marketButtonStyle(),
               ),
             ),
           ],
@@ -464,6 +586,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           onPressed: () => setState(_startNewSeed),
           icon: const Icon(Icons.shuffle_rounded),
           label: const Text('Seed moi'),
+          style: _marketButtonStyle(),
         ),
         const SizedBox(height: 10),
         Row(
@@ -476,6 +599,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                         setState(() => _placeRouteMark(RouteMarkType.boost)),
                 icon: const Icon(Icons.arrow_upward_rounded),
                 label: const Text('Oc dao'),
+                style: _marketButtonStyle(color: _oasisGreen),
               ),
             ),
             const SizedBox(width: 8),
@@ -487,6 +611,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                         setState(() => _placeRouteMark(RouteMarkType.snare)),
                 icon: const Icon(Icons.arrow_downward_rounded),
                 label: const Text('Ao anh'),
+                style: _marketButtonStyle(color: _spice),
               ),
             ),
           ],
@@ -615,8 +740,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
               return Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0x0F0F4C5C),
+                  color: const Color(0xFFFFF4D3),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0x22B98543)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,7 +752,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF0F4C5C),
+                        color: _marketTeal,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1124,67 +1250,219 @@ class _ScoreLine {
   final String detail;
 }
 
+class _DesertBackdropPainter extends CustomPainter {
+  const _DesertBackdropPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Rect rect = Offset.zero & size;
+    final Paint sky = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[
+          Color(0xFFFFE7AD),
+          Color(0xFFF5C987),
+          Color(0xFFFFF6DE),
+        ],
+      ).createShader(rect);
+    canvas.drawRect(rect, sky);
+
+    final Paint sun = Paint()..color = const Color(0x88F2C14E);
+    canvas.drawCircle(Offset(size.width * 0.84, size.height * 0.12), 58, sun);
+
+    final Paint farDune = Paint()..color = const Color(0x55E8AD59);
+    final Path far = Path()
+      ..moveTo(0, size.height * 0.58)
+      ..quadraticBezierTo(size.width * 0.22, size.height * 0.50,
+          size.width * 0.46, size.height * 0.58)
+      ..quadraticBezierTo(
+          size.width * 0.72, size.height * 0.68, size.width, size.height * 0.55)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(far, farDune);
+
+    final Paint nearDune = Paint()..color = const Color(0x77D99043);
+    final Path near = Path()
+      ..moveTo(0, size.height * 0.76)
+      ..quadraticBezierTo(size.width * 0.28, size.height * 0.64,
+          size.width * 0.57, size.height * 0.75)
+      ..quadraticBezierTo(
+          size.width * 0.82, size.height * 0.84, size.width, size.height * 0.72)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(near, nearDune);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _TradeRoutePainter extends CustomPainter {
+  const _TradeRoutePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final List<Offset> centers = <Offset>[];
+    final double cellWidth = size.width / 4;
+    final double cellHeight = size.height / 4;
+
+    for (int space = 0; space < trackSize; space++) {
+      final int visualIndex = visualRouteOrder.indexOf(space);
+      final int row = visualIndex ~/ 4;
+      final int col = visualIndex % 4;
+      centers.add(Offset(
+        (col + 0.5) * cellWidth,
+        (row + 0.5) * cellHeight,
+      ));
+    }
+
+    final Path path = Path()..moveTo(centers.first.dx, centers.first.dy);
+    for (final Offset center in centers.skip(1)) {
+      path.lineTo(center.dx, center.dy);
+    }
+
+    final Paint shadow = Paint()
+      ..color = const Color(0x33B98543)
+      ..strokeWidth = 15
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, shadow);
+
+    final Paint trail = Paint()
+      ..color = const Color(0xAAFFF6DB)
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    canvas.drawPath(path, trail);
+
+    final Paint dots = Paint()..color = const Color(0x55E4572E);
+    for (final Offset center in centers) {
+      canvas.drawCircle(center, 4, dots);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _Panel extends StatelessWidget {
-  const _Panel({required this.child});
+  const _Panel({
+    required this.child,
+    this.padding = EdgeInsets.zero,
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1A17202A)),
+        color: _paper.withOpacity(0.94),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x33B98543)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            blurRadius: 36,
-            color: Color(0x240F4C5C),
-            offset: Offset(0, 15),
+            blurRadius: 30,
+            color: Color(0x2417202A),
+            offset: Offset(0, 16),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: child,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: padding,
+          child: child,
+        ),
       ),
     );
   }
 }
 
 class _StripStat extends StatelessWidget {
-  const _StripStat({required this.label, required this.value});
+  const _StripStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: <Widget>[
-        Text(
-          label.toUpperCase(),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xB3FFFFFF),
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
-            fontWeight: FontWeight.w900,
+        Icon(icon, color: _sunGold, size: 18),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                label.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xB3FFFFFF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1C6),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0x33B98543)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 13, color: _spice),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1214,40 +1492,64 @@ class _SpaceTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color background = isFinish
-        ? const Color(0xFF0F4C5C)
+    final List<Color> fill = isFinish
+        ? <Color>[_marketTeal, _deepIndigo]
         : isStart
-            ? const Color(0xFFE9F6EF)
-            : const Color(0xFFF9FBFA);
-    final Color foreground = isFinish ? Colors.white : const Color(0xFF17202A);
+            ? const <Color>[Color(0xFFE8F7D9), Color(0xFFCBEFBD)]
+            : const <Color>[Color(0xFFFFF5D7), Color(0xFFEEC477)];
+    final Color foreground = isFinish ? Colors.white : _ink;
 
     return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(9),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
       child: InkWell(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color:
-                  selected ? const Color(0xFF0F4C5C) : const Color(0x1F17202A),
-              width: selected ? 2 : 1,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: fill,
             ),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? _spice : const Color(0x44B98543),
+              width: selected ? 2.4 : 1,
+            ),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                blurRadius: selected ? 16 : 7,
+                color: selected
+                    ? const Color(0x55E4572E)
+                    : const Color(0x1D17202A),
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
           child: Column(
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Text(
-                    '$index',
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                  Container(
+                    height: 20,
+                    width: 20,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isFinish
+                          ? Colors.white.withOpacity(0.16)
+                          : Colors.white.withOpacity(0.62),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '$index',
+                      style: TextStyle(
+                        color: foreground,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -1338,14 +1640,18 @@ class _CaravanToken extends StatelessWidget {
       height: size,
       width: size,
       decoration: BoxDecoration(
-        color: caravan.color,
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: Colors.white, width: 1.6),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[caravan.color.withOpacity(0.95), caravan.color],
+        ),
+        shape: BoxShape.circle,
+        border: Border.all(color: _paper, width: 1.8),
         boxShadow: const <BoxShadow>[
           BoxShadow(
-            blurRadius: 8,
-            color: Color(0x2617202A),
-            offset: Offset(0, 4),
+            blurRadius: 10,
+            color: Color(0x3317202A),
+            offset: Offset(0, 5),
           ),
         ],
       ),
@@ -1369,8 +1675,9 @@ class _RouteBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: boost ? const Color(0xFF2D936C) : const Color(0xFFE4572E),
+        color: boost ? _oasisGreen : _spice,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withOpacity(0.5)),
       ),
       child: Text(
         boost ? '+1' : '-1',
@@ -1395,9 +1702,9 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
-        color: const Color(0x0F0F4C5C),
+        color: const Color(0xFFFFF4CF),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0x120F4C5C)),
+        border: Border.all(color: const Color(0x33B98543)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1407,7 +1714,7 @@ class _MiniStat extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF61717C),
+              color: _muted,
               fontSize: 10,
               fontWeight: FontWeight.w900,
             ),
@@ -1418,7 +1725,7 @@ class _MiniStat extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF17202A),
+              color: _ink,
               fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
@@ -1447,7 +1754,8 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0x1F17202A)),
+        color: const Color(0xFFFFF6DB),
+        border: Border.all(color: const Color(0x33B98543)),
         borderRadius: BorderRadius.circular(9),
       ),
       child: Row(
@@ -1521,9 +1829,16 @@ class _RowCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0x1F17202A)),
+        color: const Color(0xFFFFF8E6),
+        border: Border.all(color: const Color(0x33B98543)),
         borderRadius: BorderRadius.circular(9),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            blurRadius: 8,
+            color: Color(0x1217202A),
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: <Widget>[
@@ -1540,6 +1855,7 @@ class _RowCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
+                    color: _ink,
                     fontSize: 13,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1550,7 +1866,7 @@ class _RowCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF61717C),
+                    color: _muted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1583,9 +1899,12 @@ class _SmallAction extends StatelessWidget {
       return FilledButton(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
+          backgroundColor: _marketTeal,
+          foregroundColor: Colors.white,
           minimumSize: const Size(58, 34),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
         child: Text(label),
       );
@@ -1594,9 +1913,13 @@ class _SmallAction extends StatelessWidget {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
+        foregroundColor: _spice,
+        side: const BorderSide(color: Color(0x66E4572E)),
+        backgroundColor: const Color(0xFFFFF9EA),
         minimumSize: const Size(58, 34),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
       child: Text(label),
     );
