@@ -3,12 +3,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('Caravan Chaos renders core mobile controls',
+  testWidgets('Caravan Chaos starts from menu then opens bot game',
       (WidgetTester tester) async {
-    await tester.binding.setSurfaceSize(const Size(844, 390));
+    await tester.binding.setSurfaceSize(const Size(844, 700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const CaravanChaosApp());
+
+    expect(find.text('Play with Bot'), findsOneWidget);
+    expect(find.text('Play with Human'), findsOneWidget);
+    expect(find.text('Coming soon'), findsOneWidget);
+    expect(find.text('Tutorials'), findsOneWidget);
+
+    await tester.tap(find.text('Tutorials'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Draw wind'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('Draw wind'))).pop();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Play with Bot'));
+    await tester.pumpAndSettle();
 
     expect(find.text('VI'), findsOneWidget);
     expect(find.text('EN'), findsOneWidget);
