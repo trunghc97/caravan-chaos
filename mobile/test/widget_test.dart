@@ -41,8 +41,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('rail-turn')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Rút gió'), findsOneWidget);
+    expect(find.byIcon(Icons.casino_rounded), findsWidgets);
     expect(find.text('Seed mới'), findsOneWidget);
+    expect(find.text('Thoát game'), findsOneWidget);
     expect(find.text('Lượt'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey<String>('rail-contracts')));
@@ -60,5 +61,11 @@ void main() {
     expect(find.text('Sổ cái'), findsOneWidget);
     expect(find.textContaining('#'), findsWidgets);
     expect(find.textContaining('Ngày 1'), findsWidgets);
+    expect(find.textContaining('vốn đầu'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey<String>('rail-exit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Play with Bot'), findsOneWidget);
   });
 }

@@ -159,10 +159,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   int _activeTurnIndex = 0;
   int _botTurnToken = 0;
   Timer? _botTurnTimer;
+  Timer? _diceAnimationTimer;
   int _localSeq = 0;
+  int _rollAnimationTick = 0;
+  String? _rollingCaravanId;
   WindResult? _lastWind;
-  String? _eventTitle;
-  String? _eventText;
 
   late List<List<String>> _spaces;
   late List<String> _bag;
@@ -184,6 +185,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   @override
   void dispose() {
     _botTurnTimer?.cancel();
+    _diceAnimationTimer?.cancel();
     _botTurnToken += 1;
     super.dispose();
   }
@@ -209,6 +211,10 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                   return _buildLandscapeShell(constraints, leader);
                 }
 
+                const double railWidth = 58;
+                final double panelWidth = _infoPanelOpen
+                    ? math.min(318, constraints.maxWidth - railWidth - 24)
+                    : 0;
                 final bool wide = constraints.maxWidth >= 820;
                 final double? boardMaxWidth = wide
                     ? math.max(540, math.min(760, constraints.maxHeight - 120))
@@ -217,43 +223,51 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                   leader,
                   maxWidth: boardMaxWidth,
                 );
-                final Widget controls = _buildControls();
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(14),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1120),
-                      child: Column(
-                        children: <Widget>[
-                          _buildHeader(),
-                          const SizedBox(height: 12),
-                          if (wide)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Expanded(
-                                  child: Align(
-                                    alignment: Alignment.topLeft,
-                                    child: board,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                SizedBox(width: 390, child: controls),
-                              ],
-                            )
-                          else
-                            Column(
-                              children: <Widget>[
+                return Stack(
+                  children: <Widget>[
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(
+                        14,
+                        14,
+                        railWidth + 24,
+                        14,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1120),
+                          child: Column(
+                            children: <Widget>[
+                              _buildHeader(),
+                              const SizedBox(height: 12),
+                              if (wide)
+                                Align(
+                                  alignment: Alignment.topLeft,
+                                  child: board,
+                                )
+                              else
                                 board,
-                                const SizedBox(height: 12),
-                                controls,
-                              ],
-                            ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    Positioned(
+                      top: 14,
+                      right: panelWidth + 10,
+                      bottom: 14,
+                      width: railWidth,
+                      child: _buildTabRail(),
+                    ),
+                    if (_infoPanelOpen)
+                      Positioned(
+                        top: 14,
+                        right: 10,
+                        bottom: 14,
+                        width: panelWidth,
+                        child: _buildFloatingInfoPanel(),
+                      ),
+                  ],
                 );
               },
             ),
@@ -411,22 +425,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             ),
             const Spacer(),
             _RailButton(
-              key: const ValueKey<String>('rail-wind'),
-              icon: Icons.air_rounded,
+              key: const ValueKey<String>('rail-exit'),
+              icon: Icons.logout_rounded,
               selected: false,
-              tooltip: _t('Rút gió', 'Draw wind'),
-              onPressed:
-                  !_canTakeHumanAction ? null : () => setState(_drawWind),
-            ),
-            const SizedBox(height: 8),
-            _RailButton(
-              key: const ValueKey<String>('rail-event'),
-              icon: Icons.auto_awesome_rounded,
-              selected: false,
-              tooltip: _t('Sự kiện', 'Event'),
-              onPressed: !_canTakeHumanAction || _coins < 2
-                  ? null
-                  : () => setState(_drawEvent),
+              tooltip: _t('Thoát', 'Exit'),
+              onPressed: _exitGame,
             ),
           ],
         ),
@@ -732,63 +735,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
-  Widget _buildControls() {
-    return _Panel(
-      child: Column(
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: Theme.of(context).colorScheme.copyWith(
-                      primary: _marketTeal,
-                      secondaryContainer: const Color(0xFFFFE8AF),
-                      onSecondaryContainer: _ink,
-                    ),
-              ),
-              child: SegmentedButton<int>(
-                segments: <ButtonSegment<int>>[
-                  ButtonSegment<int>(
-                    value: 0,
-                    icon: const Icon(Icons.touch_app_rounded),
-                    label: Text(_t('Lượt', 'Turn')),
-                  ),
-                  ButtonSegment<int>(
-                    value: 1,
-                    icon: const Icon(Icons.receipt_long_rounded),
-                    label: Text(_t('Hợp đồng', 'Contracts')),
-                  ),
-                  ButtonSegment<int>(
-                    value: 2,
-                    icon: const Icon(Icons.leaderboard_rounded),
-                    label: Text(_t('Sổ cái', 'Ledger')),
-                  ),
-                ],
-                selected: <int>{_activeTab},
-                onSelectionChanged: (Set<int> value) {
-                  setState(() => _activeTab = value.first);
-                },
-                showSelectedIcon: false,
-              ),
-            ),
-          ),
-          const Divider(height: 1, color: Color(0x22B98543)),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 180),
-              child: <Widget>[
-                _buildActionTab(),
-                _buildContractsTab(),
-                _buildLedgerTab(),
-              ][_activeTab],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBoardActionHub() {
     return Container(
       padding: const EdgeInsets.all(8),
@@ -849,22 +795,28 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
               Expanded(
                 child: GridView.count(
                   physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: compact ? 2 : 3,
+                  crossAxisCount: 3,
                   mainAxisSpacing: 5,
                   crossAxisSpacing: 5,
-                  childAspectRatio: compact ? 1.82 : 1.88,
+                  childAspectRatio: 1.34,
                   children: <Widget>[
                     for (final Standing standing in standings)
                       _MarketBetCard(
                         caravan: _caravan(standing.id),
                         dice: _windRolls[standing.id],
                         rank: standings.indexOf(standing) + 1,
+                        canRoll: _canRollCaravan(standing.id),
                         canLeg: _canSignLeg(standing.id),
                         canFinal: _canSignFinal(standing.id),
+                        isRolling: _rollingCaravanId == standing.id,
+                        rollTick: _rollAnimationTick,
+                        onRoll: () =>
+                            setState(() => _drawWindForCaravan(standing.id)),
                         onLeg: () =>
                             setState(() => _signLegContract(standing.id)),
                         onFinal: () =>
                             setState(() => _signFinalContract(standing.id)),
+                        rollLabel: _t('Đổ xúc sắc', 'Roll dice'),
                         legLabel: _t('Chặng', 'Leg'),
                         finalLabel: _t('Cược', 'Final'),
                       ),
@@ -1008,47 +960,14 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: FilledButton.icon(
-                onPressed:
-                    !_canTakeHumanAction ? null : () => setState(_drawWind),
-                icon: const Icon(Icons.air_rounded),
-                label: Text(_t('Rút gió', 'Draw wind')),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _spice,
-                  foregroundColor: Colors.white,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: !_canTakeHumanAction || _coins < 2
-                    ? null
-                    : () => setState(_drawEvent),
-                icon: const Icon(Icons.auto_awesome_rounded),
-                label: Text(_t('Sự kiện', 'Event')),
-                style: _marketButtonStyle(color: _spice),
-              ),
-            ),
-          ],
+        OutlinedButton.icon(
+          onPressed: _exitGame,
+          icon: const Icon(Icons.logout_rounded),
+          label: Text(_t('Thoát game', 'Exit game')),
+          style: _marketButtonStyle(color: _spice),
         ),
         const SizedBox(height: 10),
         _buildLastWind(),
-        if (_eventTitle != null && _eventText != null) ...<Widget>[
-          const SizedBox(height: 10),
-          _InfoCard(
-            title: _eventTitle!,
-            body: _eventText!,
-            icon: Icons.auto_awesome_rounded,
-          ),
-        ],
       ],
     );
   }
@@ -1305,8 +1224,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _botTurnToken += 1;
     _localSeq = 0;
     _lastWind = null;
-    _eventTitle = null;
-    _eventText = null;
     _routeMarks = <int, RouteMarkType>{};
     _windRolls = <String, int>{};
     _legContracts.clear();
@@ -1335,6 +1252,13 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
     _addLog(
       _t(
+        'Bạn nhận $startingCoins dinar vốn đầu trận.',
+        'You receive $startingCoins starting coins.',
+      ),
+      kind: 'starting_coins',
+    );
+    _addLog(
+      _t(
         'Thứ tự lượt: ${_turnOrder.map(_turnSeatName).join(' -> ')}. $_activeTurnName đi đầu.',
         'Turn order: ${_turnOrder.map(_turnSeatName).join(' -> ')}. $_activeTurnName starts.',
       ),
@@ -1343,19 +1267,54 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _scheduleBotTurnIfNeeded();
   }
 
-  void _drawWind() {
-    if (!_canTakeHumanAction) {
-      return;
-    }
-    if (_bag.isEmpty) {
-      _resolveLeg(false);
-      _completeActionTurn();
+  void _exitGame() {
+    _botTurnTimer?.cancel();
+    _diceAnimationTimer?.cancel();
+    _botTurnToken += 1;
+    Navigator.of(context).maybePop();
+  }
+
+  bool _canRollCaravan(String caravanId) {
+    return _canTakeHumanAction && _bag.contains(caravanId);
+  }
+
+  void _drawWindForCaravan(String caravanId) {
+    if (!_canRollCaravan(caravanId)) {
       return;
     }
 
-    final String caravanId = takeRandom(_bag, _random);
+    _applyWindRoll(
+      caravanId: caravanId,
+      actor: _playerName,
+      kind: 'draw_wind',
+    );
+
+    if (_isRaceFinished()) {
+      _resolveLeg(true);
+    } else if (_bag.isEmpty) {
+      _resolveLeg(false);
+    }
+    _completeActionTurn();
+  }
+
+  void _applyWindRoll({
+    required String caravanId,
+    required String actor,
+    required String kind,
+  }) {
+    _bag.remove(caravanId);
     final int steps = _random.nextInt(3) + 1;
     _windRolls[caravanId] = steps;
+    _rollingCaravanId = caravanId;
+    _rollAnimationTick += 1;
+    _diceAnimationTimer?.cancel();
+    _diceAnimationTimer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted || _rollingCaravanId != caravanId) {
+        return;
+      }
+      setState(() => _rollingCaravanId = null);
+    });
+
     final String markText = _moveChain(caravanId, steps);
     _lastWind = WindResult(
       caravanId: caravanId,
@@ -1369,109 +1328,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         '${_caravan(caravanId).name} đi $steps ô$markSuffix.',
         '${_caravan(caravanId).name} moved $steps spaces$markSuffix.',
       ),
-      actor: _playerName,
-      kind: 'draw_wind',
+      actor: actor,
+      kind: kind,
     );
-
-    if (_isRaceFinished()) {
-      _resolveLeg(true);
-    } else if (_bag.isEmpty) {
-      _resolveLeg(false);
-    }
-    _completeActionTurn();
-  }
-
-  void _drawEvent() {
-    if (!_canTakeHumanAction || _coins < 2) {
-      return;
-    }
-    _coins -= 2;
-    final int eventIndex = _random.nextInt(4);
-
-    if (eventIndex == 0) {
-      _eventTitle = _t('Gia vị vỡ thùng', 'Spice spill');
-      _eventText = _t(
-        'Đoàn cuối được đẩy thêm 2 ô.',
-        'The last caravan is pushed 2 spaces.',
-      );
-      final Standing last = _standings().last;
-      _moveChain(last.id, 2);
-      _addLog(
-        _t(
-          '${_caravan(last.id).name} bám mùi gia vị, tiến 2 ô.',
-          '${_caravan(last.id).name} follows the spice trail, +2 spaces.',
-        ),
-        actor: _playerName,
-        kind: 'event_card',
-      );
-    } else if (eventIndex == 1) {
-      _eventTitle = _t('Trạm ảo ảnh', 'Mirage stop');
-      _eventText = _t(
-        'Đoàn dẫn đầu lùi 1 ô.',
-        'The leading caravan moves back 1 space.',
-      );
-      final Standing first = _standings().first;
-      _moveChain(first.id, -1);
-      _addLog(
-        _t(
-          '${_caravan(first.id).name} vòng qua ảo ảnh, lùi 1 ô.',
-          '${_caravan(first.id).name} circles a mirage, -1 space.',
-        ),
-        actor: _playerName,
-        kind: 'event_card',
-      );
-    } else if (eventIndex == 2) {
-      _eventTitle = _t('Phiên chợ đêm', 'Night market');
-      _eventText = _t(
-        'Bạn nhận 4 dinar, đối thủ gần nhất nhận 2.',
-        'You gain 4 coins; the closest rival gains 2.',
-      );
-      _coins += 4;
-      final List<Rival> sortedRivals = List<Rival>.from(_rivals)
-        ..sort((Rival a, Rival b) => b.coins.compareTo(a.coins));
-      final Rival rival = sortedRivals.first;
-      rival.coins += 2;
-      _addLog(
-        _t(
-          'Phiên chợ đêm sinh lời: bạn +4, ${rival.name} +2.',
-          'Night market profit: you +4, ${rival.name} +2.',
-        ),
-        actor: _playerName,
-        kind: 'event_card',
-      );
-    } else {
-      _eventTitle = _t('Đường kính', 'Glass road');
-      _eventText = _t(
-        'Một ô trước đoàn cuối thành ốc đảo.',
-        'The space ahead of the last caravan becomes an oasis.',
-      );
-      final Standing last = _standings().last;
-      final int target = math.min(finishSpace - 1, last.position + 1);
-      if (target > 0 && !_routeMarks.containsKey(target)) {
-        _routeMarks[target] = RouteMarkType.boost;
-        _addLog(
-          _t('Đường kính mở ở ô $target.',
-              'Glass road opens at space $target.'),
-          actor: _playerName,
-          kind: 'event_card',
-        );
-      } else {
-        _coins += 2;
-        _addLog(
-          _t(
-            'Đường kính đã đóng, bạn thu lại 2 dinar.',
-            'The glass road is closed; you recover 2 coins.',
-          ),
-          actor: _playerName,
-          kind: 'event_card',
-        );
-      }
-    }
-
-    if (_isRaceFinished()) {
-      _resolveLeg(true);
-    }
-    _completeActionTurn();
   }
 
   void _placeRouteMark(RouteMarkType type) {
@@ -1637,22 +1496,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       return false;
     }
 
-    final String caravanId = takeRandom(_bag, _random);
-    final int steps = _random.nextInt(3) + 1;
-    _windRolls[caravanId] = steps;
-    final String markText = _moveChain(caravanId, steps);
-    _lastWind = WindResult(
+    final String caravanId = _bag[_random.nextInt(_bag.length)];
+    _applyWindRoll(
       caravanId: caravanId,
-      steps: steps,
-      markText: markText,
-    );
-    final String markSuffix =
-        markText.isEmpty ? '' : ', ${_localizedMarkText(markText)}';
-    _addLog(
-      _t(
-        '${_caravan(caravanId).name} đi $steps ô$markSuffix.',
-        '${_caravan(caravanId).name} moved $steps spaces$markSuffix.',
-      ),
       actor: rival.name,
       kind: 'bot_draw_wind',
     );
@@ -1818,24 +1664,14 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       (int total, Contract contract) =>
           total + legPayout(contract.caravanId, leader, second),
     );
-    if (playerPayout > 0) {
-      _coins += playerPayout;
-      _addLog(
-        _t(
-          'Hợp đồng chặng trả $playerPayout dinar cho bạn.',
-          'Leg contracts pay you $playerPayout coins.',
-        ),
-        kind: 'leg_payout',
-      );
-    } else if (_legContracts.isNotEmpty) {
-      _addLog(
-        _t(
-          'Hợp đồng chặng của bạn không trúng.',
-          'Your leg contracts missed.',
-        ),
-        kind: 'leg_payout',
-      );
-    }
+    _coins += playerPayout;
+    _addLog(
+      _t(
+        'Kết toán ngày $_day: bạn +$playerPayout dinar từ hợp đồng chặng.',
+        'Day $_day settlement: you gain +$playerPayout coins from leg contracts.',
+      ),
+      kind: 'leg_payout',
+    );
 
     for (final Rival rival in _rivals) {
       rival.coins += rival.legContracts.fold<int>(
@@ -1861,8 +1697,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
 
     _day += 1;
     _bag = newWindBag();
-    _eventTitle = null;
-    _eventText = null;
     _lastWind = null;
     _windRolls = <String, int>{};
     _routeMarks = <int, RouteMarkType>{};
@@ -1894,8 +1728,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _coins += playerPayout;
     _addLog(
       _t(
-        'Hợp đồng chung cuộc trả $playerPayout dinar cho bạn.',
-        'Final contracts pay you $playerPayout coins.',
+        'Kết toán chung cuộc: bạn +$playerPayout dinar từ hợp đồng cuối.',
+        'Final settlement: you gain +$playerPayout coins from final contracts.',
       ),
       kind: 'final_payout',
     );
@@ -2634,10 +2468,15 @@ class _MarketBetCard extends StatelessWidget {
     required this.caravan,
     required this.dice,
     required this.rank,
+    required this.canRoll,
     required this.canLeg,
     required this.canFinal,
+    required this.isRolling,
+    required this.rollTick,
+    required this.onRoll,
     required this.onLeg,
     required this.onFinal,
+    required this.rollLabel,
     required this.legLabel,
     required this.finalLabel,
   });
@@ -2645,10 +2484,15 @@ class _MarketBetCard extends StatelessWidget {
   final Caravan caravan;
   final int? dice;
   final int rank;
+  final bool canRoll;
   final bool canLeg;
   final bool canFinal;
+  final bool isRolling;
+  final int rollTick;
+  final VoidCallback onRoll;
   final VoidCallback onLeg;
   final VoidCallback onFinal;
+  final String rollLabel;
   final String legLabel;
   final String finalLabel;
 
@@ -2697,7 +2541,12 @@ class _MarketBetCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                _DiceFace(value: dice, color: caravan.color),
+                _DiceFace(
+                  value: dice,
+                  color: caravan.color,
+                  rolling: isRolling,
+                  rollTick: rollTick,
+                ),
               ],
             ),
             const Spacer(),
@@ -2705,19 +2554,33 @@ class _MarketBetCard extends StatelessWidget {
               children: <Widget>[
                 Expanded(
                   child: _MarketCardButton(
+                    icon: Icons.casino_rounded,
+                    tooltip: rollLabel,
+                    enabled: canRoll,
+                    onPressed: onRoll,
+                    color: caravan.color,
+                    filled: true,
+                    height: 17,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: _MarketCardButton(
                     icon: Icons.flag_rounded,
                     tooltip: legLabel,
                     enabled: canLeg,
                     onPressed: onLeg,
+                    height: 17,
                   ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 3),
                 Expanded(
                   child: _MarketCardButton(
                     icon: Icons.emoji_events_rounded,
                     tooltip: finalLabel,
                     enabled: canFinal,
                     onPressed: onFinal,
+                    height: 17,
                   ),
                 ),
               ],
@@ -2730,28 +2593,61 @@ class _MarketBetCard extends StatelessWidget {
 }
 
 class _DiceFace extends StatelessWidget {
-  const _DiceFace({required this.value, required this.color});
+  const _DiceFace({
+    required this.value,
+    required this.color,
+    required this.rolling,
+    required this.rollTick,
+  });
 
   final int? value;
   final Color color;
+  final bool rolling;
+  final int rollTick;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 16,
-      width: 16,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: value == null ? _paper.withOpacity(0.9) : color,
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: color.withOpacity(0.35)),
-      ),
-      child: Text(
-        value?.toString() ?? '-',
-        style: TextStyle(
-          color: value == null ? _muted : Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
+    return TweenAnimationBuilder<double>(
+      key: ValueKey<String>('${value ?? 0}-$rolling-$rollTick'),
+      duration: const Duration(milliseconds: 680),
+      curve: Curves.easeOutBack,
+      tween: Tween<double>(begin: 0, end: rolling ? 1 : 0),
+      builder: (BuildContext context, double t, Widget? child) {
+        final double lift = rolling ? math.sin(t * math.pi) * 2.8 : 0;
+        final double scale = rolling ? 1 + math.sin(t * math.pi) * 0.24 : 1;
+        return Transform.translate(
+          offset: Offset(0, -lift),
+          child: Transform.rotate(
+            angle: rolling ? t * math.pi * 2 : 0,
+            child: Transform.scale(scale: scale, child: child),
+          ),
+        );
+      },
+      child: Container(
+        height: 16,
+        width: 16,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: value == null ? _paper.withOpacity(0.9) : color,
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: color.withOpacity(0.35)),
+          boxShadow: rolling
+              ? <BoxShadow>[
+                  BoxShadow(
+                    color: color.withOpacity(0.28),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          value?.toString() ?? '-',
+          style: TextStyle(
+            color: value == null ? _muted : Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
@@ -2764,27 +2660,35 @@ class _MarketCardButton extends StatelessWidget {
     required this.tooltip,
     required this.enabled,
     required this.onPressed,
+    this.color = _marketTeal,
+    this.filled = false,
+    this.height = 18,
   });
 
   final IconData icon;
   final String tooltip;
   final bool enabled;
   final VoidCallback onPressed;
+  final Color color;
+  final bool filled;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
       child: SizedBox(
-        height: 18,
+        height: height,
         child: IconButton(
           padding: EdgeInsets.zero,
           onPressed: enabled ? onPressed : null,
           icon: Icon(icon, size: 13),
           style: IconButton.styleFrom(
-            backgroundColor: _paper.withOpacity(0.82),
-            foregroundColor: _marketTeal,
+            backgroundColor:
+                filled ? color.withOpacity(0.92) : _paper.withOpacity(0.82),
+            foregroundColor: filled ? Colors.white : color,
             disabledForegroundColor: _muted.withOpacity(0.45),
+            disabledBackgroundColor: _paper.withOpacity(0.48),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(7),
             ),
@@ -3149,33 +3053,36 @@ class _TokenStack extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool crowded = ids.length > 3;
-        final double overlap = crowded ? 4.5 : 9;
-        final double maxSizeForHeight = constraints.maxHeight.isFinite
-            ? constraints.maxHeight - overlap * (ids.length - 1)
-            : 34;
-        final double size = crowded
-            ? math.max(18, math.min(24, maxSizeForHeight))
-            : math.min(34, math.max(26, constraints.maxHeight));
-        final double height = math.min(
-          constraints.maxHeight,
-          size + overlap * (ids.length - 1),
+        final double gap = ids.length > 3 ? 2 : 3;
+        final double maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : ids.length * 34;
+        final double maxHeight =
+            constraints.maxHeight.isFinite ? constraints.maxHeight : 30;
+        final double sizeByWidth =
+            (maxWidth - gap * (ids.length - 1)) / (ids.length * 1.45);
+        final double size = math.max(
+          6,
+          math.min(30, math.min(maxHeight, sizeByWidth)),
         );
-        final double width = size * 1.45 + 16;
+        final List<String> orderedIds = ids.reversed.toList();
 
-        return SizedBox(
-          height: height,
-          width: width,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: <Widget>[
-              for (int i = 0; i < ids.length; i++)
-                Positioned(
-                  bottom: math.min(height - size, i * overlap),
-                  left: 8 + (i.isEven ? -4 : 4),
-                  child: _CaravanToken(caravan: caravanFor(ids[i]), size: size),
-                ),
-            ],
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: size,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (int i = 0; i < orderedIds.length; i++) ...<Widget>[
+                  if (i > 0) SizedBox(width: gap),
+                  _CaravanToken(
+                    caravan: caravanFor(orderedIds[i]),
+                    size: size,
+                  ),
+                ],
+              ],
+            ),
           ),
         );
       },

@@ -136,7 +136,11 @@ MoveResult moveChainInPlace({
     }
   }
 
-  spaces[target].addAll(moving);
+  if (delta < 0) {
+    spaces[target].insertAll(0, moving);
+  } else {
+    spaces[target].addAll(moving);
+  }
   return MoveResult(
     from: found.position,
     to: target,

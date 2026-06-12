@@ -82,6 +82,34 @@ void main() {
       expect(spaces[3], <String>['brasswing']);
     });
 
+    test('forward moves land above target stack and backward moves land below',
+        () {
+      final List<List<String>> spaces = _emptySpaces();
+      spaces[2].add('saffron');
+      spaces[4].addAll(<String>['glassback', 'manta']);
+      spaces[6].add('onyx');
+
+      moveChainInPlace(
+        spaces: spaces,
+        routeMarks: const <int, RouteMarkType>{},
+        caravanId: 'saffron',
+        delta: 2,
+      );
+
+      expect(spaces[4], <String>['glassback', 'manta', 'saffron']);
+      expect(standingsFor(spaces).first.id, 'onyx');
+
+      moveChainInPlace(
+        spaces: spaces,
+        routeMarks: const <int, RouteMarkType>{},
+        caravanId: 'onyx',
+        delta: -2,
+      );
+
+      expect(spaces[4], <String>['onyx', 'glassback', 'manta', 'saffron']);
+      expect(standingsFor(spaces).first.id, 'saffron');
+    });
+
     test('stage and final payouts follow the top three standings', () {
       const Standing leader = Standing(id: 'onyx', position: 9, layer: 0);
       const Standing second = Standing(id: 'manta', position: 7, layer: 1);
