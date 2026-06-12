@@ -93,11 +93,11 @@ List<List<String>> startingSpaces(math.Random random) {
 
 List<String> newWindBag() => List<String>.from(gameCaravanIds);
 
-List<String> shuffled(List<String> items, math.Random random) {
-  final List<String> copy = List<String>.from(items);
+List<T> shuffled<T>(List<T> items, math.Random random) {
+  final List<T> copy = List<T>.from(items);
   for (int i = copy.length - 1; i > 0; i--) {
     final int j = random.nextInt(i + 1);
-    final String temp = copy[i];
+    final T temp = copy[i];
     copy[i] = copy[j];
     copy[j] = temp;
   }

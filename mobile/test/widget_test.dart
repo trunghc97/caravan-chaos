@@ -36,6 +36,7 @@ void main() {
 
     expect(find.text('Rút gió'), findsOneWidget);
     expect(find.text('Seed mới'), findsOneWidget);
+    expect(find.text('Lượt'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey<String>('rail-contracts')));
     await tester.pumpAndSettle();
@@ -44,9 +45,6 @@ void main() {
     expect(find.text('Saffron Guild'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey<String>('rail-turn')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('Rút gió'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey<String>('rail-ledger')));

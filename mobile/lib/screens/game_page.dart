@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -154,6 +155,10 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   int _selectedSpace = 5;
   bool _raceOver = false;
   bool _routeUsed = false;
+  bool _botThinking = false;
+  int _activeTurnIndex = 0;
+  int _botTurnToken = 0;
+  Timer? _botTurnTimer;
   int _localSeq = 0;
   WindResult? _lastWind;
   String? _eventTitle;
@@ -161,6 +166,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
 
   late List<List<String>> _spaces;
   late List<String> _bag;
+  List<_TurnSeat> _turnOrder = <_TurnSeat>[];
   Map<String, int> _windRolls = <String, int>{};
   List<Rival> _rivals = <Rival>[];
   final List<Contract> _legContracts = <Contract>[];
@@ -173,6 +179,13 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     super.initState();
     _seed = _nextSeed();
     _resetGame();
+  }
+
+  @override
+  void dispose() {
+    _botTurnTimer?.cancel();
+    _botTurnToken += 1;
+    super.dispose();
   }
 
   @override
@@ -402,7 +415,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
               icon: Icons.air_rounded,
               selected: false,
               tooltip: _t('Rút gió', 'Draw wind'),
-              onPressed: _raceOver ? null : () => setState(_drawWind),
+              onPressed:
+                  !_canTakeHumanAction ? null : () => setState(_drawWind),
             ),
             const SizedBox(height: 8),
             _RailButton(
@@ -410,8 +424,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
               icon: Icons.auto_awesome_rounded,
               selected: false,
               tooltip: _t('Sự kiện', 'Event'),
-              onPressed:
-                  _raceOver || _coins < 2 ? null : () => setState(_drawEvent),
+              onPressed: !_canTakeHumanAction || _coins < 2
+                  ? null
+                  : () => setState(_drawEvent),
             ),
           ],
         ),
@@ -536,6 +551,10 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         _HeaderChip(
           icon: Icons.air_rounded,
           label: _t('${_bag.length}/5 gió', '${_bag.length}/5 wind'),
+        ),
+        _HeaderChip(
+          icon: Icons.person_pin_circle_rounded,
+          label: _turnStatusLabel,
         ),
         _HeaderChip(
           icon: Icons.flag_rounded,
@@ -813,7 +832,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        _t('Chợ cược', 'Bet market'),
+                        _turnStatusLabel,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -857,8 +876,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                 children: <Widget>[
                   Expanded(
                     child: _TinyMarketStat(
-                      icon: Icons.location_on_rounded,
-                      value: _routeLabel(_selectedSpace),
+                      icon: Icons.person_pin_circle_rounded,
+                      value: _activeTurnName,
                     ),
                   ),
                   const SizedBox(width: 5),
@@ -954,9 +973,17 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             const SizedBox(width: 8),
             Expanded(
               child: _MiniStat(
-                  label: _t('Bot', 'Bots'), value: '${_rivals.length}'),
+                label: _t('Lượt', 'Turn'),
+                value: _activeTurnName,
+              ),
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        _TurnOrderStrip(
+          seats: _turnOrder,
+          activeIndex: _activeTurnIndex,
+          humanLabel: _playerName,
         ),
         const SizedBox(height: 8),
         Row(
@@ -985,7 +1012,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           children: <Widget>[
             Expanded(
               child: FilledButton.icon(
-                onPressed: _raceOver ? null : () => setState(_drawWind),
+                onPressed:
+                    !_canTakeHumanAction ? null : () => setState(_drawWind),
                 icon: const Icon(Icons.air_rounded),
                 label: Text(_t('Rút gió', 'Draw wind')),
                 style: FilledButton.styleFrom(
@@ -1001,8 +1029,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed:
-                    _raceOver || _coins < 2 ? null : () => setState(_drawEvent),
+                onPressed: !_canTakeHumanAction || _coins < 2
+                    ? null
+                    : () => setState(_drawEvent),
                 icon: const Icon(Icons.auto_awesome_rounded),
                 label: Text(_t('Sự kiện', 'Event')),
                 style: _marketButtonStyle(color: _spice),
@@ -1025,7 +1054,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   }
 
   bool get _routeMarkDisabled {
-    return _raceOver ||
+    return !_canTakeHumanAction ||
         _routeUsed ||
         _coins < 1 ||
         _selectedSpace <= 0 ||
@@ -1228,12 +1257,42 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
 
   String get _systemName => _t('Hệ thống', 'System');
 
+  _TurnSeat get _activeTurnSeat {
+    if (_turnOrder.isEmpty) {
+      return const _TurnSeat.player();
+    }
+    return _turnOrder[_activeTurnIndex.clamp(0, _turnOrder.length - 1)];
+  }
+
+  bool get _isHumanTurn => _activeTurnSeat.isHuman;
+
+  bool get _canTakeHumanAction => !_raceOver && !_botThinking && _isHumanTurn;
+
+  String get _activeTurnName {
+    final _TurnSeat seat = _activeTurnSeat;
+    if (seat.isHuman) {
+      return _playerName;
+    }
+    return seat.rivalName;
+  }
+
+  String get _turnStatusLabel {
+    if (_raceOver) {
+      return _t('Kết thúc', 'Finished');
+    }
+    if (_botThinking) {
+      return _t('$_activeTurnName đang thao tác', '$_activeTurnName is acting');
+    }
+    return _t('Lượt $_activeTurnName', '$_activeTurnName turn');
+  }
+
   void _startNewSeed() {
     _seed = _nextSeed();
     _resetGame();
   }
 
   void _resetGame() {
+    _botTurnTimer?.cancel();
     _random = math.Random(_seed);
     _activeTab = 0;
     _coins = startingCoins;
@@ -1241,6 +1300,9 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _selectedSpace = 5;
     _raceOver = false;
     _routeUsed = false;
+    _botThinking = false;
+    _activeTurnIndex = 0;
+    _botTurnToken += 1;
     _localSeq = 0;
     _lastWind = null;
     _eventTitle = null;
@@ -1257,6 +1319,13 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       Rival(name: 'Bahir', coins: 22),
       Rival(name: 'Tala', coins: 22),
     ];
+    _turnOrder = shuffled(
+      <_TurnSeat>[
+        const _TurnSeat.player(),
+        for (final Rival rival in _rivals) _TurnSeat.rival(rival.name),
+      ],
+      _random,
+    );
     _addLog(
       _t(
         'Chợ mở cổng. Các đoàn buôn xuất phát từ ô 0. Seed $_seed.',
@@ -1264,15 +1333,23 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       ),
       kind: 'game_reset',
     );
-    _aiPrepareLeg();
+    _addLog(
+      _t(
+        'Thứ tự lượt: ${_turnOrder.map(_turnSeatName).join(' -> ')}. $_activeTurnName đi đầu.',
+        'Turn order: ${_turnOrder.map(_turnSeatName).join(' -> ')}. $_activeTurnName starts.',
+      ),
+      kind: 'turn_order',
+    );
+    _scheduleBotTurnIfNeeded();
   }
 
   void _drawWind() {
-    if (_raceOver) {
+    if (!_canTakeHumanAction) {
       return;
     }
     if (_bag.isEmpty) {
       _resolveLeg(false);
+      _completeActionTurn();
       return;
     }
 
@@ -1300,13 +1377,12 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       _resolveLeg(true);
     } else if (_bag.isEmpty) {
       _resolveLeg(false);
-    } else {
-      _runBotMarket();
     }
+    _completeActionTurn();
   }
 
   void _drawEvent() {
-    if (_raceOver || _coins < 2) {
+    if (!_canTakeHumanAction || _coins < 2) {
       return;
     }
     _coins -= 2;
@@ -1394,12 +1470,14 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
 
     if (_isRaceFinished()) {
       _resolveLeg(true);
-    } else {
-      _runBotMarket();
     }
+    _completeActionTurn();
   }
 
   void _placeRouteMark(RouteMarkType type) {
+    if (_routeMarkDisabled) {
+      return;
+    }
     _coins -= 1;
     _routeUsed = true;
     _routeMarks[_selectedSpace] = type;
@@ -1411,7 +1489,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       actor: _playerName,
       kind: 'route_mark',
     );
-    _runBotMarket();
+    _completeActionTurn();
   }
 
   void _signLegContract(String caravanId) {
@@ -1428,7 +1506,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       actor: _playerName,
       kind: 'leg_contract',
     );
-    _runBotMarket();
+    _completeActionTurn();
   }
 
   void _signFinalContract(String caravanId) {
@@ -1445,44 +1523,157 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       actor: _playerName,
       kind: 'final_contract',
     );
-    _runBotMarket();
+    _completeActionTurn();
   }
 
-  void _runBotMarket() {
-    if (_raceOver) {
+  void _completeActionTurn() {
+    if (_raceOver || _turnOrder.isEmpty) {
+      _botThinking = false;
+      return;
+    }
+    _advanceTurn();
+    _scheduleBotTurnIfNeeded();
+  }
+
+  void _advanceTurn() {
+    _activeTurnIndex = (_activeTurnIndex + 1) % _turnOrder.length;
+    _addLog(
+      _t(
+        'Chuyển lượt cho $_activeTurnName.',
+        'Turn passes to $_activeTurnName.',
+      ),
+      kind: 'turn_passed',
+    );
+  }
+
+  void _scheduleBotTurnIfNeeded() {
+    if (!mounted || _raceOver || _turnOrder.isEmpty || _isHumanTurn) {
+      _botTurnTimer?.cancel();
+      _botThinking = false;
       return;
     }
 
-    for (final Rival rival in _rivals) {
-      if (_random.nextDouble() > 0.58) {
-        continue;
+    _botThinking = true;
+    final int token = ++_botTurnToken;
+    _botTurnTimer?.cancel();
+    _botTurnTimer = Timer(const Duration(milliseconds: 650), () {
+      if (!mounted || token != _botTurnToken || _raceOver || _isHumanTurn) {
+        return;
       }
+      setState(_performBotTurn);
+    });
+  }
 
-      final double roll = _random.nextDouble();
-      final List<bool Function()> actions = roll < 0.42
-          ? <bool Function()>[
-              () => _tryRivalLegContract(rival),
-              () => _tryRivalRouteMark(rival),
-              () => _tryRivalFinalContract(rival),
-            ]
-          : roll < 0.74
-              ? <bool Function()>[
-                  () => _tryRivalFinalContract(rival),
-                  () => _tryRivalRouteMark(rival),
-                  () => _tryRivalLegContract(rival),
-                ]
-              : <bool Function()>[
-                  () => _tryRivalRouteMark(rival),
-                  () => _tryRivalLegContract(rival),
-                  () => _tryRivalFinalContract(rival),
-                ];
+  void _performBotTurn() {
+    final Rival? rival = _activeRival();
+    if (rival == null) {
+      _botThinking = false;
+      _completeActionTurn();
+      return;
+    }
 
-      for (final bool Function() action in actions) {
-        if (action()) {
-          break;
-        }
+    _botThinking = false;
+    final bool acted = _tryRivalAction(rival);
+    if (!acted) {
+      _addLog(
+        _t(
+          '${rival.name} bỏ lượt để quan sát bàn cờ.',
+          '${rival.name} passes and watches the board.',
+        ),
+        actor: rival.name,
+        kind: 'bot_pass',
+      );
+    }
+
+    if (_isRaceFinished()) {
+      _resolveLeg(true);
+    } else if (_bag.isEmpty) {
+      _resolveLeg(false);
+    }
+
+    _completeActionTurn();
+  }
+
+  bool _tryRivalAction(Rival rival) {
+    final double roll = _random.nextDouble();
+    final List<bool Function()> actions = roll < 0.34
+        ? <bool Function()>[
+            () => _tryRivalDrawWind(rival),
+            () => _tryRivalLegContract(rival),
+            () => _tryRivalRouteMark(rival),
+            () => _tryRivalFinalContract(rival),
+          ]
+        : roll < 0.58
+            ? <bool Function()>[
+                () => _tryRivalLegContract(rival),
+                () => _tryRivalDrawWind(rival),
+                () => _tryRivalRouteMark(rival),
+                () => _tryRivalFinalContract(rival),
+              ]
+            : roll < 0.78
+                ? <bool Function()>[
+                    () => _tryRivalFinalContract(rival),
+                    () => _tryRivalDrawWind(rival),
+                    () => _tryRivalRouteMark(rival),
+                    () => _tryRivalLegContract(rival),
+                  ]
+                : <bool Function()>[
+                    () => _tryRivalRouteMark(rival),
+                    () => _tryRivalDrawWind(rival),
+                    () => _tryRivalLegContract(rival),
+                    () => _tryRivalFinalContract(rival),
+                  ];
+
+    for (final bool Function() action in actions) {
+      if (action()) {
+        return true;
       }
     }
+    return false;
+  }
+
+  bool _tryRivalDrawWind(Rival rival) {
+    if (_bag.isEmpty) {
+      return false;
+    }
+
+    final String caravanId = takeRandom(_bag, _random);
+    final int steps = _random.nextInt(3) + 1;
+    _windRolls[caravanId] = steps;
+    final String markText = _moveChain(caravanId, steps);
+    _lastWind = WindResult(
+      caravanId: caravanId,
+      steps: steps,
+      markText: markText,
+    );
+    final String markSuffix =
+        markText.isEmpty ? '' : ', ${_localizedMarkText(markText)}';
+    _addLog(
+      _t(
+        '${_caravan(caravanId).name} đi $steps ô$markSuffix.',
+        '${_caravan(caravanId).name} moved $steps spaces$markSuffix.',
+      ),
+      actor: rival.name,
+      kind: 'bot_draw_wind',
+    );
+    return true;
+  }
+
+  Rival? _activeRival() {
+    final _TurnSeat seat = _activeTurnSeat;
+    if (seat.isHuman) {
+      return null;
+    }
+    for (final Rival rival in _rivals) {
+      if (rival.name == seat.rivalName) {
+        return rival;
+      }
+    }
+    return null;
+  }
+
+  String _turnSeatName(_TurnSeat seat) {
+    return seat.isHuman ? _playerName : seat.rivalName;
   }
 
   bool _tryRivalLegContract(Rival rival) {
@@ -1681,7 +1872,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       rival.legContracts.clear();
       rival.routeUsed = false;
     }
-    _aiPrepareLeg();
     _addLog(
       _t(
         'Ngày $_day bắt đầu. Hợp đồng chặng được mở lại.',
@@ -1719,35 +1909,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     }
   }
 
-  void _aiPrepareLeg() {
-    final List<Standing> standings = _standings();
-    for (final Rival rival in _rivals) {
-      if (rival.coins >= 2) {
-        final Standing target = weightedPick(
-          standings.take(4).toList(),
-          _random,
-        );
-        rival.coins -= 2;
-        rival.legContracts.add(Contract(target.id, _day));
-      }
-
-      if (rival.finalContracts.length < maxFinalContracts &&
-          rival.coins >= 1 &&
-          _random.nextDouble() > 0.42) {
-        final Standing target = weightedPick(standings, _random);
-        final bool exists = rival.finalContracts.any(
-          (Contract c) => c.caravanId == target.id,
-        );
-        if (!exists) {
-          rival.coins -= 1;
-          rival.finalContracts.add(Contract(target.id, _day));
-        }
-      }
-    }
-  }
-
   bool _canSignLeg(String caravanId) {
-    return !_raceOver &&
+    return _canTakeHumanAction &&
         _coins >= 2 &&
         _legContracts.length < maxLegContracts &&
         !_legContracts.any(
@@ -1756,7 +1919,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   }
 
   bool _canSignFinal(String caravanId) {
-    return !_raceOver &&
+    return _canTakeHumanAction &&
         _coins >= 1 &&
         _finalContracts.length < maxFinalContracts &&
         !_finalContracts.any(
@@ -1832,6 +1995,101 @@ class _BoardSlot {
   final int space;
   final int row;
   final int column;
+}
+
+class _TurnSeat {
+  const _TurnSeat.player()
+      : rivalName = '',
+        isHuman = true;
+
+  const _TurnSeat.rival(this.rivalName) : isHuman = false;
+
+  final String rivalName;
+  final bool isHuman;
+}
+
+class _TurnOrderStrip extends StatelessWidget {
+  const _TurnOrderStrip({
+    required this.seats,
+    required this.activeIndex,
+    required this.humanLabel,
+  });
+
+  final List<_TurnSeat> seats;
+  final int activeIndex;
+  final String humanLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (seats.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4CF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x22B98543)),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: <Widget>[
+          for (int i = 0; i < seats.length; i++)
+            _TurnOrderChip(
+              label: seats[i].isHuman ? humanLabel : seats[i].rivalName,
+              active: i == activeIndex,
+              human: seats[i].isHuman,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TurnOrderChip extends StatelessWidget {
+  const _TurnOrderChip({
+    required this.label,
+    required this.active,
+    required this.human,
+  });
+
+  final String label;
+  final bool active;
+  final bool human;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color = human ? _spice : _marketTeal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: active ? color : Colors.white.withOpacity(0.65),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withOpacity(active ? 0.9 : 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(
+            human ? Icons.person_rounded : Icons.smart_toy_rounded,
+            size: 13,
+            color: active ? Colors.white : color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: active ? Colors.white : _ink,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _DesertBackdropPainter extends CustomPainter {
