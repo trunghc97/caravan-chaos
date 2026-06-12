@@ -14,8 +14,17 @@ const Color _startAqua = Color(0xFF39D3D8);
 const Color _startPaper = Color(0xFFFFFAEE);
 const Color _startMuted = Color(0xFF66737A);
 
-class StartGamePage extends StatelessWidget {
+enum _StartLanguage { vi, en }
+
+class StartGamePage extends StatefulWidget {
   const StartGamePage({super.key});
+
+  @override
+  State<StartGamePage> createState() => _StartGamePageState();
+}
+
+class _StartGamePageState extends State<StartGamePage> {
+  _StartLanguage _language = _StartLanguage.vi;
 
   @override
   Widget build(BuildContext context) {
@@ -45,9 +54,13 @@ class StartGamePage extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                          const _HeroBrand(),
+                          _HeroBrand(language: _language),
                           SizedBox(height: wide ? 28 : 18),
                           _StartActionPanel(
+                            language: _language,
+                            onLanguageChanged: (Set<_StartLanguage> value) {
+                              setState(() => _language = value.first);
+                            },
                             onPlayBot: () => _openBotGame(context),
                             onTutorials: () => _showTutorials(context),
                           ),
@@ -78,7 +91,7 @@ class StartGamePage extends StatelessWidget {
       showDragHandle: true,
       backgroundColor: _startPaper,
       constraints: const BoxConstraints(maxWidth: 560),
-      builder: (BuildContext context) => const _TutorialSheet(),
+      builder: (BuildContext context) => _TutorialSheet(language: _language),
     );
   }
 }
@@ -129,7 +142,13 @@ class _MarketplaceBackground extends StatelessWidget {
 }
 
 class _HeroBrand extends StatelessWidget {
-  const _HeroBrand();
+  const _HeroBrand({required this.language});
+
+  final _StartLanguage language;
+
+  String _t(String vi, String en) {
+    return language == _StartLanguage.vi ? vi : en;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -197,9 +216,12 @@ class _HeroBrand extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        const Text(
-          'Đua lữ hành. Đặt cược. Lật kèo phiên chợ.',
-          style: TextStyle(
+        Text(
+          _t(
+            'Đua lữ hành. Đặt cược. Lật kèo phiên chợ.',
+            'Race caravans. Bet smart. Break the market.',
+          ),
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w900,
@@ -214,9 +236,12 @@ class _HeroBrand extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Bản solo MVP1 - playable prototype',
-          style: TextStyle(
+        Text(
+          _t(
+            'Bản solo MVP1 - playable prototype',
+            'Solo MVP1 - playable prototype',
+          ),
+          style: const TextStyle(
             color: _startAqua,
             fontSize: 16,
             fontWeight: FontWeight.w900,
@@ -268,12 +293,20 @@ class _MvpBadge extends StatelessWidget {
 
 class _StartActionPanel extends StatelessWidget {
   const _StartActionPanel({
+    required this.language,
+    required this.onLanguageChanged,
     required this.onPlayBot,
     required this.onTutorials,
   });
 
+  final _StartLanguage language;
+  final ValueChanged<Set<_StartLanguage>> onLanguageChanged;
   final VoidCallback onPlayBot;
   final VoidCallback onTutorials;
+
+  String _t(String vi, String en) {
+    return language == _StartLanguage.vi ? vi : en;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -295,38 +328,53 @@ class _StartActionPanel extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    _t('Chọn chế độ', 'Choose mode'),
+                    style: const TextStyle(
+                      color: _startCream,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _StartLanguageToggle(
+                  language: language,
+                  onChanged: onLanguageChanged,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _StartMenuButton(
               icon: Icons.smart_toy_rounded,
-              title: 'Play with Bot',
-              subtitle: 'Solo race with 3 AI rivals',
+              title: _t('Chơi với Bot', 'Play with Bot'),
+              subtitle: _t(
+                'Vào bàn solo, bot tự hành động theo lượt',
+                'Solo table with turn-based AI rivals',
+              ),
               color: _startSpice,
               filled: true,
               onPressed: onPlayBot,
             ),
             const SizedBox(height: 10),
-            const _StartMenuButton(
+            _StartMenuButton(
               icon: Icons.groups_2_rounded,
-              title: 'Play with Human',
-              subtitle: 'Coming soon',
+              title: _t('Chơi với Người', 'Play with Human'),
+              subtitle: _t('Sắp ra mắt', 'Coming soon'),
               color: _startTeal,
             ),
             const SizedBox(height: 10),
             _StartMenuButton(
               icon: Icons.menu_book_rounded,
-              title: 'Tutorials',
-              subtitle: 'Learn movement, betting, and route marks',
+              title: _t('Hướng dẫn', 'Tutorials'),
+              subtitle: _t(
+                'Luật lượt, gió, cược và dấu đường',
+                'Turns, wind, contracts, and route marks',
+              ),
               color: _startAqua,
               onPressed: onTutorials,
-            ),
-            const SizedBox(height: 12),
-            const Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                _StartChip(icon: Icons.flag_rounded, label: '16 spaces'),
-                _StartChip(icon: Icons.casino_rounded, label: 'Bot MVP'),
-                _StartChip(icon: Icons.toll_rounded, label: 'Bet market'),
-              ],
             ),
           ],
         ),
@@ -356,150 +404,261 @@ class _StartMenuButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool enabled = onPressed != null;
     final Color foreground = filled ? Colors.white : color;
-    final Color background = filled ? color : _startPaper.withOpacity(0.94);
+    final Color background = filled
+        ? color
+        : enabled
+            ? Colors.white.withOpacity(0.9)
+            : Colors.white.withOpacity(0.28);
 
     return SizedBox(
-      height: 76,
-      child: FilledButton(
-        onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          backgroundColor: enabled ? background : _startPaper.withOpacity(0.64),
-          disabledBackgroundColor: _startPaper.withOpacity(0.64),
-          foregroundColor: foreground,
-          disabledForegroundColor: Colors.white.withOpacity(0.52),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: BorderSide(
-              color: enabled
-                  ? color.withOpacity(0.64)
-                  : Colors.white.withOpacity(0.14),
-            ),
+      height: 74,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: enabled
+              ? LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: filled
+                      ? <Color>[color, const Color(0xFFFF815A)]
+                      : <Color>[
+                          Colors.white.withOpacity(0.94),
+                          Colors.white.withOpacity(0.82),
+                        ],
+                )
+              : LinearGradient(
+                  colors: <Color>[
+                    Colors.white.withOpacity(0.34),
+                    Colors.white.withOpacity(0.22),
+                  ],
+                ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: enabled ? Colors.white.withOpacity(0.34) : Colors.white24,
           ),
-          elevation: filled ? 6 : 0,
-          shadowColor: const Color(0x77000000),
+          boxShadow: enabled
+              ? const <BoxShadow>[
+                  BoxShadow(
+                    blurRadius: 22,
+                    color: Color(0x55000000),
+                    offset: Offset(0, 10),
+                  ),
+                ]
+              : null,
         ),
-        child: Row(
-          children: <Widget>[
-            Icon(icon, size: 29),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
+        child: FilledButton(
+          onPressed: onPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: background.withOpacity(0.0),
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: foreground,
+            disabledForegroundColor: Colors.white.withOpacity(0.52),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 0,
+          ),
+          child: Row(
+            children: <Widget>[
+              Icon(icon, size: 29),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: enabled
-                          ? foreground.withOpacity(filled ? 0.84 : 0.72)
-                          : Colors.white.withOpacity(0.52),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: enabled
+                            ? foreground.withOpacity(filled ? 0.84 : 0.72)
+                            : Colors.white.withOpacity(0.52),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            if (enabled)
-              Icon(
-                filled ? Icons.play_arrow_rounded : Icons.chevron_right_rounded,
-                size: 29,
-              )
-            else
-              const Icon(Icons.lock_clock_rounded, size: 23),
-          ],
+              if (enabled)
+                Icon(
+                  filled
+                      ? Icons.play_arrow_rounded
+                      : Icons.chevron_right_rounded,
+                  size: 29,
+                )
+              else
+                const Icon(Icons.lock_clock_rounded, size: 23),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _StartChip extends StatelessWidget {
-  const _StartChip({required this.icon, required this.label});
+class _StartLanguageToggle extends StatelessWidget {
+  const _StartLanguageToggle({
+    required this.language,
+    required this.onChanged,
+  });
 
-  final IconData icon;
-  final String label;
+  final _StartLanguage language;
+  final ValueChanged<Set<_StartLanguage>> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: _startGold.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 14, color: _startTeal),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              color: _startTeal,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: _startGold,
+              secondaryContainer: _startGold,
+              onSecondaryContainer: _startTeal,
             ),
+      ),
+      child: SegmentedButton<_StartLanguage>(
+        segments: const <ButtonSegment<_StartLanguage>>[
+          ButtonSegment<_StartLanguage>(
+            value: _StartLanguage.vi,
+            label: Text('VI'),
+          ),
+          ButtonSegment<_StartLanguage>(
+            value: _StartLanguage.en,
+            label: Text('EN'),
           ),
         ],
+        selected: <_StartLanguage>{language},
+        onSelectionChanged: onChanged,
+        showSelectedIcon: false,
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+            const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          textStyle: MaterialStateProperty.all<TextStyle>(
+            const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+          ),
+          side: MaterialStateProperty.all<BorderSide>(
+            BorderSide(color: Colors.white.withOpacity(0.34)),
+          ),
+          foregroundColor: MaterialStateProperty.all<Color>(_startCream),
+          backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+            (Set<MaterialState> states) {
+              if (states.contains(MaterialState.selected)) {
+                return _startGold;
+              }
+              return Colors.white.withOpacity(0.08);
+            },
+          ),
+        ),
       ),
     );
   }
 }
 
 class _TutorialSheet extends StatelessWidget {
-  const _TutorialSheet();
+  const _TutorialSheet({required this.language});
+
+  final _StartLanguage language;
+
+  String _t(String vi, String en) {
+    return language == _StartLanguage.vi ? vi : en;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
+    final List<_TutorialData> steps = <_TutorialData>[
+      _TutorialData(
+        icon: Icons.person_pin_circle_rounded,
+        title: _t('1. Lượt chơi', '1. Turn order'),
+        body: _t(
+          'Đầu trận, hệ thống xáo ngẫu nhiên thứ tự giữa bạn và các bot. Trên bàn luôn hiện ai đang đến lượt. Chỉ người đang giữ lượt mới được bấm hành động.',
+          'At the start, the game shuffles the order between you and the bots. The board always shows whose turn it is. Only the active player can act.',
+        ),
+      ),
+      _TutorialData(
+        icon: Icons.touch_app_rounded,
+        title: _t('2. Mỗi lượt chỉ một hành động', '2. One action per turn'),
+        body: _t(
+          'Bạn có thể rút gió, ký hợp đồng, đặt ốc đảo/ảo ảnh, hoặc dùng sự kiện. Khi hành động xong, lượt tự chuyển cho người tiếp theo.',
+          'You may draw wind, sign a contract, place an oasis/mirage, or trigger an event. After one action, the turn passes to the next player.',
+        ),
+      ),
+      _TutorialData(
+        icon: Icons.air_rounded,
+        title: _t('3. Rút gió và di chuyển', '3. Wind and movement'),
+        body: _t(
+          'Rút gió chọn ngẫu nhiên một đoàn chưa di chuyển trong ngày và đẩy 1-3 ô. Nếu đoàn đang chồng lên nhau, các đoàn phía trên đi theo cùng.',
+          'Drawing wind selects one caravan that has not moved this day and pushes it 1-3 spaces. If caravans are stacked, the ones above ride along.',
+        ),
+      ),
+      _TutorialData(
+        icon: Icons.swap_vert_rounded,
+        title: _t('4. Dấu đường', '4. Route marks'),
+        body: _t(
+          'Ốc đảo tăng thêm 1 ô khi đoàn đi tới. Ảo ảnh kéo lùi 1 ô. Mỗi người chỉ đặt được một dấu đường mỗi chặng, nên hãy chọn ô thật kỹ.',
+          'An oasis boosts a caravan by 1 when it lands there. A mirage pulls it back by 1. Each player can place one route mark per leg.',
+        ),
+      ),
+      _TutorialData(
+        icon: Icons.receipt_long_rounded,
+        title: _t('5. Hợp đồng và điểm', '5. Contracts and scoring'),
+        body: _t(
+          'Hợp đồng chặng trả thưởng khi hết ngày. Hợp đồng chung cuộc trả thưởng lúc có đoàn về đích. Bạn thắng phiên chợ bằng cách giữ nhiều dinar nhất.',
+          'Leg contracts pay at the end of a day. Final contracts pay when a caravan reaches the finish. Win the market by ending with the most coins.',
+        ),
+      ),
+      _TutorialData(
+        icon: Icons.visibility_rounded,
+        title: _t('6. Theo dõi realtime', '6. Realtime board state'),
+        body: _t(
+          'Mỗi thao tác của bot được cập nhật trực tiếp trên bàn và trong sổ cái. Khi lên multiplayer, các thao tác này sẽ được broadcast cho mọi người xem cùng lúc.',
+          'Every bot action updates the board and ledger immediately. In multiplayer, these actions will be broadcast so everyone sees the same table.',
+        ),
+      ),
+    ];
+
+    return SafeArea(
       top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 22),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Tutorials',
-              style: TextStyle(
+              _t('Hướng dẫn', 'Tutorials'),
+              style: const TextStyle(
                 color: _startInk,
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            SizedBox(height: 12),
-            _TutorialStep(
-              icon: Icons.air_rounded,
-              title: 'Draw wind',
-              body:
-                  'Each wind draw moves one caravan. Stacked caravans ride together.',
+            const SizedBox(height: 6),
+            Text(
+              _t(
+                'Nắm vòng lượt trước, rồi hãy đặt cược.',
+                'Learn the turn loop first, then start betting.',
+              ),
+              style: const TextStyle(
+                color: _startMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            _TutorialStep(
-              icon: Icons.receipt_long_rounded,
-              title: 'Sign contracts',
-              body: 'Pick leg or final winners before the market shifts.',
-            ),
-            _TutorialStep(
-              icon: Icons.swap_vert_rounded,
-              title: 'Mark the route',
-              body:
-                  'Oasis boosts a move by 1. Mirage pulls a forward move back by 1.',
-            ),
+            const SizedBox(height: 14),
+            for (final _TutorialData step in steps) _TutorialStep(data: step),
           ],
         ),
       ),
@@ -507,8 +666,8 @@ class _TutorialSheet extends StatelessWidget {
   }
 }
 
-class _TutorialStep extends StatelessWidget {
-  const _TutorialStep({
+class _TutorialData {
+  const _TutorialData({
     required this.icon,
     required this.title,
     required this.body,
@@ -517,22 +676,43 @@ class _TutorialStep extends StatelessWidget {
   final IconData icon;
   final String title;
   final String body;
+}
+
+class _TutorialStep extends StatelessWidget {
+  const _TutorialStep({required this.data});
+
+  final _TutorialData data;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4CF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x22B98543)),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(icon, color: _startSpice),
-          const SizedBox(width: 10),
+          Container(
+            height: 34,
+            width: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: _startTeal,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(data.icon, color: _startGold, size: 19),
+          ),
+          const SizedBox(width: 11),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  title,
+                  data.title,
                   style: const TextStyle(
                     color: _startInk,
                     fontSize: 14,
@@ -541,7 +721,7 @@ class _TutorialStep extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  body,
+                  data.body,
                   style: const TextStyle(
                     color: _startMuted,
                     fontSize: 13,

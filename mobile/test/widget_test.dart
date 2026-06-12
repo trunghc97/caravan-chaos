@@ -10,18 +10,25 @@ void main() {
 
     await tester.pumpWidget(const CaravanChaosApp());
 
+    expect(find.text('Chơi với Bot'), findsOneWidget);
+    expect(find.text('Chơi với Người'), findsOneWidget);
+    expect(find.text('Sắp ra mắt'), findsOneWidget);
+    expect(find.text('Hướng dẫn'), findsOneWidget);
+
+    await tester.tap(find.text('Hướng dẫn'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1. Lượt chơi'), findsOneWidget);
+    expect(find.text('2. Mỗi lượt chỉ một hành động'), findsOneWidget);
+
+    Navigator.of(tester.element(find.text('1. Lượt chơi'))).pop();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
     expect(find.text('Play with Bot'), findsOneWidget);
-    expect(find.text('Play with Human'), findsOneWidget);
-    expect(find.text('Coming soon'), findsOneWidget);
     expect(find.text('Tutorials'), findsOneWidget);
-
-    await tester.tap(find.text('Tutorials'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Draw wind'), findsOneWidget);
-
-    Navigator.of(tester.element(find.text('Draw wind'))).pop();
-    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Play with Bot'));
     await tester.pumpAndSettle();
