@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
@@ -156,6 +157,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   bool _raceOver = false;
   bool _routeUsed = false;
   bool _botThinking = false;
+  bool _waitingForDayEventAck = false;
   int _activeTurnIndex = 0;
   int _botTurnToken = 0;
   Timer? _botTurnTimer;
@@ -164,6 +166,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   int _rollAnimationTick = 0;
   String? _rollingCaravanId;
   WindResult? _lastWind;
+  String? _dayEventTitle;
+  String? _dayEventText;
 
   late List<List<String>> _spaces;
   late List<String> _bag;
@@ -211,65 +215,144 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                   return _buildLandscapeShell(constraints, leader);
                 }
 
-                const double railWidth = 58;
-                final double panelWidth = _infoPanelOpen
-                    ? math.min(318, constraints.maxWidth - railWidth - 24)
-                    : 0;
-                final bool wide = constraints.maxWidth >= 820;
-                final double? boardMaxWidth = wide
-                    ? math.max(540, math.min(760, constraints.maxHeight - 120))
-                    : null;
-                final Widget board = _buildBoard(
-                  leader,
-                  maxWidth: boardMaxWidth,
-                );
-
-                return Stack(
-                  children: <Widget>[
-                    SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(
-                        14,
-                        14,
-                        railWidth + 24,
-                        14,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1120),
-                          child: Column(
-                            children: <Widget>[
-                              _buildHeader(),
-                              const SizedBox(height: 12),
-                              if (wide)
-                                Align(
-                                  alignment: Alignment.topLeft,
-                                  child: board,
-                                )
-                              else
-                                board,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 14,
-                      right: panelWidth + 10,
-                      bottom: 14,
-                      width: railWidth,
-                      child: _buildTabRail(),
-                    ),
-                    if (_infoPanelOpen)
-                      Positioned(
-                        top: 14,
-                        right: 10,
-                        bottom: 14,
-                        width: panelWidth,
-                        child: _buildFloatingInfoPanel(),
-                      ),
-                  ],
-                );
+                return _buildPortraitShell(constraints, leader);
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPortraitShell(BoxConstraints constraints, Caravan leader) {
+    const double bottomTabHeight = 62;
+    const double hudHeight = 52;
+    const double bottomInset = bottomTabHeight + 10;
+
+    return Stack(
+      children: <Widget>[
+        Positioned(
+          top: hudHeight,
+          left: 0,
+          right: 0,
+          bottom: bottomInset,
+          child: Center(
+            child: SizedBox(
+              width: constraints.maxWidth,
+              child: _buildBoard(leader, fullBleed: true),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 8,
+          top: 8,
+          right: 8,
+          child: _buildGlassHeader(leader),
+        ),
+        Positioned(
+          left: 8,
+          right: 8,
+          bottom: 8,
+          height: bottomTabHeight,
+          child: _buildBottomTabBar(),
+        ),
+        if (_infoPanelOpen) _buildPortraitInfoPopup(constraints),
+      ],
+    );
+  }
+
+  Widget _buildBottomTabBar() {
+    return Center(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _ink.withOpacity(0.66),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withOpacity(0.24)),
+          boxShadow: const <BoxShadow>[
+            BoxShadow(
+              blurRadius: 24,
+              color: Color(0x3317202A),
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _RailButton(
+                key: const ValueKey<String>('bottom-turn'),
+                icon: Icons.touch_app_rounded,
+                selected: _infoPanelOpen && _activeTab == 0,
+                tooltip: _t('Lượt', 'Turn'),
+                onPressed: () => setState(() {
+                  _activeTab = 0;
+                  _infoPanelOpen = true;
+                }),
+              ),
+              const SizedBox(width: 10),
+              _RailButton(
+                key: const ValueKey<String>('bottom-contracts'),
+                icon: Icons.receipt_long_rounded,
+                selected: _infoPanelOpen && _activeTab == 1,
+                tooltip: _t('Hợp đồng', 'Contracts'),
+                onPressed: () => setState(() {
+                  _activeTab = 1;
+                  _infoPanelOpen = true;
+                }),
+              ),
+              const SizedBox(width: 10),
+              _RailButton(
+                key: const ValueKey<String>('bottom-ledger'),
+                icon: Icons.leaderboard_rounded,
+                selected: _infoPanelOpen && _activeTab == 2,
+                tooltip: _t('Sổ cái', 'Ledger'),
+                onPressed: () => setState(() {
+                  _activeTab = 2;
+                  _infoPanelOpen = true;
+                }),
+              ),
+              const SizedBox(width: 10),
+              _RailButton(
+                key: const ValueKey<String>('bottom-exit'),
+                icon: Icons.logout_rounded,
+                selected: false,
+                tooltip: _t('Thoát', 'Exit'),
+                onPressed: _exitGame,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPortraitInfoPopup(BoxConstraints constraints) {
+    final double popupWidth = math.min(348, constraints.maxWidth - 28);
+    final double popupHeight = math.min(430, constraints.maxHeight - 138);
+
+    return Positioned.fill(
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => _infoPanelOpen = false),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: _ink.withOpacity(0.34),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Center(
+            child: SizedBox(
+              width: popupWidth,
+              height: popupHeight,
+              child: _buildFloatingInfoPanel(),
             ),
           ),
         ],
@@ -320,64 +403,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
-  Widget _buildGlassHeader(Caravan leader) {
-    final Widget logo = Container(
-      height: 36,
-      width: 36,
-      decoration: BoxDecoration(
-        color: _marketTeal.withOpacity(0.82),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.46)),
-      ),
-      child: const Icon(
-        Icons.local_shipping_rounded,
-        color: _sunGold,
-        size: 20,
-      ),
-    );
-
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool tight = constraints.maxWidth < 560;
-        return Row(
-          children: <Widget>[
-            logo,
-            const SizedBox(width: 8),
-            _HudPill(icon: Icons.wb_sunny_rounded, value: '$_day'),
-            const SizedBox(width: 6),
-            _HudPill(icon: Icons.air_rounded, value: '${_bag.length}/5'),
-            const SizedBox(width: 6),
-            const _HudPill(icon: Icons.flag_rounded, value: '15'),
-            if (!tight) ...<Widget>[
-              const SizedBox(width: 6),
-              Flexible(
-                child: _HudPill(
-                  icon: leader.icon,
-                  value: leader.name.split(' ').first,
-                ),
-              ),
-              const Spacer(),
-              _LanguageToggle(
-                language: _language,
-                onChanged: (Set<_AppLanguage> value) {
-                  setState(() => _language = value.first);
-                },
-              ),
-            ] else
-              const Spacer(),
-            const SizedBox(width: 6),
-            _HudPill(icon: Icons.toll_rounded, value: '$_coins'),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildTabRail() {
+  Widget _buildTabRail({bool compact = false}) {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _paper.withOpacity(0.38),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(compact ? 14 : 16),
         border: Border.all(color: Colors.white.withOpacity(0.42)),
         boxShadow: const <BoxShadow>[
           BoxShadow(
@@ -388,7 +418,10 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 5 : 7,
+          vertical: compact ? 6 : 8,
+        ),
         child: Column(
           children: <Widget>[
             _RailButton(
@@ -434,6 +467,66 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGlassHeader(Caravan leader) {
+    final Widget logo = Container(
+      height: 36,
+      width: 36,
+      decoration: BoxDecoration(
+        color: _marketTeal.withOpacity(0.82),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.46)),
+      ),
+      child: const Icon(
+        Icons.local_shipping_rounded,
+        color: _sunGold,
+        size: 20,
+      ),
+    );
+
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool tight = constraints.maxWidth < 560;
+        return Row(
+          children: <Widget>[
+            logo,
+            const SizedBox(width: 8),
+            _HudPill(icon: Icons.wb_sunny_rounded, value: '$_day'),
+            const SizedBox(width: 6),
+            _HudPill(icon: Icons.air_rounded, value: '${_bag.length}/5'),
+            const SizedBox(width: 6),
+            const _HudPill(icon: Icons.flag_rounded, value: '15'),
+            if (!tight) ...<Widget>[
+              const SizedBox(width: 6),
+              Flexible(
+                child: _HudPill(
+                  icon: Icons.person_pin_circle_rounded,
+                  value: _turnStatusLabel,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: _HudPill(
+                  icon: leader.icon,
+                  value: leader.name.split(' ').first,
+                ),
+              ),
+              const Spacer(),
+              _LanguageToggle(
+                language: _language,
+                onChanged: (Set<_AppLanguage> value) {
+                  setState(() => _language = value.first);
+                },
+              ),
+            ] else
+              const Spacer(),
+            const SizedBox(width: 6),
+            _HudPill(icon: Icons.toll_rounded, value: '$_coins'),
+          ],
+        );
+      },
     );
   }
 
@@ -496,234 +589,71 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     );
   }
 
-  Widget _buildHeader() {
-    final Widget brand = Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Container(
-          height: 50,
-          width: 50,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[_marketTeal, _deepIndigo],
-            ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(
-                blurRadius: 20,
-                color: Color(0x330F4C5C),
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.local_shipping_rounded,
-            color: _sunGold,
-            size: 28,
-          ),
-        ),
-        const SizedBox(width: 10),
-        const Flexible(
-          child: Text(
-            'Caravan Chaos',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _ink,
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-        ),
-      ],
-    );
-
-    final Widget chips = Wrap(
-      spacing: 6,
-      runSpacing: 5,
-      children: <Widget>[
-        _HeaderChip(
-          icon: Icons.wb_sunny_rounded,
-          label: _raceOver
-              ? _t('Kết thúc', 'Finished')
-              : _t('Ngày $_day', 'Day $_day'),
-        ),
-        _HeaderChip(
-          icon: Icons.air_rounded,
-          label: _t('${_bag.length}/5 gió', '${_bag.length}/5 wind'),
-        ),
-        _HeaderChip(
-          icon: Icons.person_pin_circle_rounded,
-          label: _turnStatusLabel,
-        ),
-        _HeaderChip(
-          icon: Icons.flag_rounded,
-          label: _t('Đích 15', 'Finish 15'),
-        ),
-      ],
-    );
-
-    final Widget languageToggle = _LanguageToggle(
-      language: _language,
-      onChanged: (Set<_AppLanguage> value) {
-        setState(() => _language = value.first);
-      },
-    );
-
-    final Widget coinPill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+  Widget _buildBoard(Caravan leader,
+      {double? maxWidth, bool fullBleed = false}) {
+    final Widget route = Container(
+      padding: EdgeInsets.all(fullBleed ? 4 : 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3C7),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x55B98543)),
+        color: const Color(0xFFEAB86E),
+        borderRadius: BorderRadius.circular(fullBleed ? 0 : 14),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(Icons.toll_rounded, color: _spice, size: 19),
-          const SizedBox(width: 6),
-          Text(
-            '$_coins',
-            style: const TextStyle(
-              color: _marketTeal,
-              fontSize: 23,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(width: 5),
-          Text(
-            _t('dinar', 'coins'),
-            style: const TextStyle(
-              color: _muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double gap = constraints.maxWidth < 460 ? 5 : 7;
+            final double cell =
+                (constraints.maxWidth - gap * (boardGridSize - 1)) /
+                    boardGridSize;
+            final double centerOffset = cell + gap;
+            final double centerSize = cell * 3 + gap * 2;
 
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: _paper.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x33B98543)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            blurRadius: 28,
-            color: Color(0x2917202A),
-            offset: Offset(0, 14),
-          ),
-        ],
-      ),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool compact = constraints.maxWidth < 520;
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            return Stack(
               children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Expanded(child: brand),
-                    const SizedBox(width: 8),
-                    coinPill,
-                  ],
+                const Positioned.fill(
+                  child: CustomPaint(painter: _TradeRoutePainter()),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 7,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: <Widget>[chips, languageToggle],
+                Positioned(
+                  left: centerOffset,
+                  top: centerOffset,
+                  width: centerSize,
+                  height: centerSize,
+                  child: _buildBoardActionHub(),
                 ),
+                for (final _BoardSlot slot in _loopBoardSlots)
+                  Positioned(
+                    left: slot.column * (cell + gap),
+                    top: slot.row * (cell + gap),
+                    width: cell,
+                    height: cell,
+                    child: _SpaceTile(
+                      index: slot.space,
+                      label: _routeLabel(slot.space),
+                      milestone: _isRouteMilestone(slot.space),
+                      stack: _spaces[slot.space],
+                      routeMark: _routeMarks[slot.space],
+                      selected: _selectedSpace == slot.space,
+                      isStart: slot.space == 0,
+                      isFinish: slot.space == finishSpace,
+                      onTap: () => setState(() => _selectedSpace = slot.space),
+                      caravanFor: _caravan,
+                    ),
+                  ),
               ],
             );
-          }
-
-          return Row(
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[brand, const SizedBox(height: 5), chips],
-                ),
-              ),
-              const SizedBox(width: 8),
-              languageToggle,
-              const SizedBox(width: 8),
-              coinPill,
-            ],
-          );
-        },
+          },
+        ),
       ),
     );
-  }
 
-  Widget _buildBoard(Caravan leader, {double? maxWidth}) {
-    final Widget board = _Panel(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(color: Color(0xFFEAB86E)),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double gap = constraints.maxWidth < 460 ? 5 : 7;
-                  final double cell =
-                      (constraints.maxWidth - gap * (boardGridSize - 1)) /
-                          boardGridSize;
-                  final double centerOffset = cell + gap;
-                  final double centerSize = cell * 3 + gap * 2;
-
-                  return Stack(
-                    children: <Widget>[
-                      const Positioned.fill(
-                        child: CustomPaint(painter: _TradeRoutePainter()),
-                      ),
-                      Positioned(
-                        left: centerOffset,
-                        top: centerOffset,
-                        width: centerSize,
-                        height: centerSize,
-                        child: _buildBoardActionHub(),
-                      ),
-                      for (final _BoardSlot slot in _loopBoardSlots)
-                        Positioned(
-                          left: slot.column * (cell + gap),
-                          top: slot.row * (cell + gap),
-                          width: cell,
-                          height: cell,
-                          child: _SpaceTile(
-                            index: slot.space,
-                            label: _routeLabel(slot.space),
-                            milestone: _isRouteMilestone(slot.space),
-                            stack: _spaces[slot.space],
-                            routeMark: _routeMarks[slot.space],
-                            selected: _selectedSpace == slot.space,
-                            isStart: slot.space == 0,
-                            isFinish: slot.space == finishSpace,
-                            onTap: () =>
-                                setState(() => _selectedSpace = slot.space),
-                            caravanFor: _caravan,
-                          ),
-                        ),
-                    ],
-                  );
-                },
-              ),
+    final Widget board = fullBleed
+        ? route
+        : _Panel(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: <Widget>[route],
             ),
-          ),
-        ],
-      ),
-    );
+          );
 
     if (maxWidth == null) {
       return board;
@@ -739,7 +669,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6D9).withOpacity(0.72),
+        color: const Color(0xFFFFF6D9).withOpacity(0.66),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withOpacity(0.52)),
         boxShadow: const <BoxShadow>[
@@ -752,53 +682,18 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       ),
       child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-          final bool compact = constraints.maxWidth < 290;
           final List<Standing> standings = _standings();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: compact ? 5 : 7,
-                ),
-                decoration: BoxDecoration(
-                  color: _marketTeal,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0x33FFFFFF)),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    const Icon(
-                      Icons.storefront_rounded,
-                      color: _sunGold,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        _turnStatusLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: compact ? 12 : 14,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: compact ? 5 : 7),
               Expanded(
                 child: GridView.count(
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisCount: 3,
-                  mainAxisSpacing: 5,
-                  crossAxisSpacing: 5,
-                  childAspectRatio: 1.34,
+                  mainAxisSpacing: 6,
+                  crossAxisSpacing: 6,
+                  childAspectRatio: 1.0,
                   children: <Widget>[
                     for (final Standing standing in standings)
                       _MarketBetCard(
@@ -816,54 +711,41 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                             setState(() => _signLegContract(standing.id)),
                         onFinal: () =>
                             setState(() => _signFinalContract(standing.id)),
-                        rollLabel: _t('Đổ xúc sắc', 'Roll dice'),
-                        legLabel: _t('Chặng', 'Leg'),
-                        finalLabel: _t('Cược', 'Final'),
+                        rollLabel: _t(
+                          'Đổ xúc sắc cho ${_caravan(standing.id).name}',
+                          'Roll dice for ${_caravan(standing.id).name}',
+                        ),
+                        legLabel: _t(
+                          'Cược chặng cho ${_caravan(standing.id).name}',
+                          'Leg bet on ${_caravan(standing.id).name}',
+                        ),
+                        finalLabel: _t(
+                          'Cược cuối cho ${_caravan(standing.id).name}',
+                          'Final bet on ${_caravan(standing.id).name}',
+                        ),
                       ),
+                    _RouteActionCard(
+                      title: _t('Dấu tuyến', 'Route mark'),
+                      selectedLabel: _selectedSpaceLabel(),
+                      status: _routeActionStatus(),
+                      canPlace: !_routeMarkDisabled,
+                      onBoost: () => setState(
+                        () => _placeRouteMark(RouteMarkType.boost),
+                      ),
+                      onSnare: () => setState(
+                        () => _placeRouteMark(RouteMarkType.snare),
+                      ),
+                      boostLabel: _t(
+                        'Đặt ốc đảo +1 ở ${_selectedSpaceLabel()}',
+                        'Place +1 oasis on ${_selectedSpaceLabel()}',
+                      ),
+                      snareLabel: _t(
+                        'Đặt ảo ảnh -1 ở ${_selectedSpaceLabel()}',
+                        'Place -1 mirage on ${_selectedSpaceLabel()}',
+                      ),
+                    ),
                   ],
                 ),
-              ),
-              SizedBox(height: compact ? 4 : 6),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _TinyMarketStat(
-                      icon: Icons.person_pin_circle_rounded,
-                      value: _activeTurnName,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: _TinyMarketStat(
-                      icon: Icons.air_rounded,
-                      value: '${_bag.length}/5',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _MarketRouteButton(
-                      icon: Icons.arrow_upward_rounded,
-                      color: _oasisGreen,
-                      disabled: _routeMarkDisabled,
-                      onPressed: () =>
-                          setState(() => _placeRouteMark(RouteMarkType.boost)),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: _MarketRouteButton(
-                      icon: Icons.arrow_downward_rounded,
-                      color: _spice,
-                      disabled: _routeMarkDisabled,
-                      onPressed: () =>
-                          setState(() => _placeRouteMark(RouteMarkType.snare)),
-                    ),
-                  ),
-                ],
               ),
             ],
           );
@@ -884,7 +766,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   }
 
   Widget _buildActionTab() {
-    final String selectedLabel = _routeLabel(_selectedSpace);
+    final String selectedLabel = _selectedSpaceLabel();
 
     return Column(
       key: const ValueKey<int>(0),
@@ -912,6 +794,36 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
                 label: _t('Tuyến', 'Route'),
                 value:
                     _routeUsed ? _t('Đã đặt', 'Placed') : _t('Trống', 'Open'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _routeMarkDisabled
+                    ? null
+                    : () => setState(() => _placeRouteMark(
+                          RouteMarkType.boost,
+                        )),
+                icon: const Icon(Icons.arrow_upward_rounded),
+                label: Text(_t('Đặt +1', 'Place +1')),
+                style: _marketButtonStyle(color: _oasisGreen),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _routeMarkDisabled
+                    ? null
+                    : () => setState(() => _placeRouteMark(
+                          RouteMarkType.snare,
+                        )),
+                icon: const Icon(Icons.arrow_downward_rounded),
+                label: Text(_t('Đặt -1', 'Place -1')),
+                style: _marketButtonStyle(color: _spice),
               ),
             ),
           ],
@@ -967,6 +879,15 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
           style: _marketButtonStyle(color: _spice),
         ),
         const SizedBox(height: 10),
+        if (_dayEventTitle != null && _dayEventText != null) ...<Widget>[
+          _InfoCard(
+            title: _dayEventTitle!,
+            body: _dayEventText!,
+            icon: Icons.auto_awesome_rounded,
+            color: _spice,
+          ),
+          const SizedBox(height: 10),
+        ],
         _buildLastWind(),
       ],
     );
@@ -975,10 +896,39 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   bool get _routeMarkDisabled {
     return !_canTakeHumanAction ||
         _routeUsed ||
-        _coins < 1 ||
         _selectedSpace <= 0 ||
         _selectedSpace >= finishSpace ||
         _routeMarks.containsKey(_selectedSpace);
+  }
+
+  String _selectedSpaceLabel() {
+    final String selectedRouteLabel = _routeLabel(_selectedSpace);
+    return selectedRouteLabel ==
+            _t('Ô $_selectedSpace', 'Space $_selectedSpace')
+        ? selectedRouteLabel
+        : _t(
+            'Ô $_selectedSpace - $selectedRouteLabel',
+            'Space $_selectedSpace - $selectedRouteLabel',
+          );
+  }
+
+  String _routeActionStatus() {
+    if (!_canTakeHumanAction) {
+      return _t('Đang chờ $_activeTurnName', 'Waiting for $_activeTurnName');
+    }
+    if (_routeUsed) {
+      return _t('Bạn đã đặt 1 lần hôm nay', 'You placed once today');
+    }
+    if (_selectedSpace <= 0 || _selectedSpace >= finishSpace) {
+      return _t('Chọn ô 1-14', 'Pick space 1-14');
+    }
+    final RouteMarkType? mark = _routeMarks[_selectedSpace];
+    if (mark != null) {
+      return mark == RouteMarkType.boost
+          ? _t('Ô này đã có ốc đảo +1', 'This space has +1 oasis')
+          : _t('Ô này đã có ảo ảnh -1', 'This space has -1 mirage');
+    }
+    return _t('Đặt ốc đảo hoặc ảo ảnh', 'Place oasis or mirage');
   }
 
   Widget _buildLastWind() {
@@ -1185,7 +1135,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
 
   bool get _isHumanTurn => _activeTurnSeat.isHuman;
 
-  bool get _canTakeHumanAction => !_raceOver && !_botThinking && _isHumanTurn;
+  bool get _canTakeHumanAction =>
+      !_raceOver && !_botThinking && !_waitingForDayEventAck && _isHumanTurn;
 
   String get _activeTurnName {
     final _TurnSeat seat = _activeTurnSeat;
@@ -1220,10 +1171,13 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _raceOver = false;
     _routeUsed = false;
     _botThinking = false;
+    _waitingForDayEventAck = false;
     _activeTurnIndex = 0;
     _botTurnToken += 1;
     _localSeq = 0;
     _lastWind = null;
+    _dayEventTitle = null;
+    _dayEventText = null;
     _routeMarks = <int, RouteMarkType>{};
     _windRolls = <String, int>{};
     _legContracts.clear();
@@ -1264,6 +1218,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       ),
       kind: 'turn_order',
     );
+    _startDayEvent(showPopup: true);
     _scheduleBotTurnIfNeeded();
   }
 
@@ -1272,6 +1227,180 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _diceAnimationTimer?.cancel();
     _botTurnToken += 1;
     Navigator.of(context).maybePop();
+  }
+
+  void _startDayEvent({required bool showPopup}) {
+    final int eventIndex = _random.nextInt(4);
+    final List<Standing> standings = _standings();
+    final Standing leader = standings.first;
+    final Standing last = standings.last;
+    final Standing randomStanding =
+        standings[_random.nextInt(standings.length)];
+    final Standing crowded = _mostCrowdedStanding(standings);
+
+    if (eventIndex == 0) {
+      _placeDayRouteEvent(
+        titleVi: 'Gió thuận sau đoàn cuối',
+        titleEn: 'Tailwind behind the last caravan',
+        type: RouteMarkType.boost,
+        target: last,
+        preferredOffset: 1,
+        bodyVi: (int space) =>
+            'Ô $space thành ốc đảo +1, nằm gần xe ${_caravan(last.id).name} đang ở ô ${last.position}.',
+        bodyEn: (int space) =>
+            'Space $space becomes a +1 oasis, near ${_caravan(last.id).name} at space ${last.position}.',
+      );
+    } else if (eventIndex == 1) {
+      _placeDayRouteEvent(
+        titleVi: 'Cát lún trước đoàn dẫn',
+        titleEn: 'Quicksand before the leader',
+        type: RouteMarkType.snare,
+        target: leader,
+        preferredOffset: 1,
+        bodyVi: (int space) =>
+            'Ô $space có ảo ảnh -1, nằm gần xe ${_caravan(leader.id).name} đang ở ô ${leader.position}.',
+        bodyEn: (int space) =>
+            'Space $space becomes a -1 mirage, near ${_caravan(leader.id).name} at space ${leader.position}.',
+      );
+    } else if (eventIndex == 2) {
+      _placeDayRouteEvent(
+        titleVi: 'Đường tắt mở cạnh đoàn đông',
+        titleEn: 'Shortcut beside the packed caravan',
+        type: RouteMarkType.boost,
+        target: crowded,
+        preferredOffset: 1,
+        bodyVi: (int space) =>
+            'Ô $space thành ốc đảo +1, nằm cạnh cụm xe đông nhất ở ô ${crowded.position}.',
+        bodyEn: (int space) =>
+            'Space $space becomes a +1 oasis, beside the most crowded group at space ${crowded.position}.',
+      );
+    } else {
+      _placeDayRouteEvent(
+        titleVi: 'Bão cát đổi lối',
+        titleEn: 'Sandstorm changes the lane',
+        type: RouteMarkType.snare,
+        target: randomStanding,
+        preferredOffset: 1,
+        bodyVi: (int space) =>
+            'Ô $space có ảo ảnh -1, nằm gần xe ${_caravan(randomStanding.id).name} đang ở ô ${randomStanding.position}.',
+        bodyEn: (int space) =>
+            'Space $space becomes a -1 mirage, near ${_caravan(randomStanding.id).name} at space ${randomStanding.position}.',
+      );
+    }
+
+    _addLog(
+      _t(
+        'Sự kiện đầu ngày $_day: $_dayEventTitle - $_dayEventText',
+        'Start-of-day event $_day: $_dayEventTitle - $_dayEventText',
+      ),
+      kind: 'day_event',
+    );
+
+    if (showPopup) {
+      _showDayEventPopupLater();
+    }
+  }
+
+  void _placeDayRouteEvent({
+    required String titleVi,
+    required String titleEn,
+    required RouteMarkType type,
+    required Standing target,
+    required int preferredOffset,
+    required String Function(int space) bodyVi,
+    required String Function(int space) bodyEn,
+  }) {
+    _dayEventTitle = _t(titleVi, titleEn);
+    final int? space = _openRouteSpaceNear(target.position + preferredOffset);
+    if (space == null) {
+      _dayEventText = _t(
+        'Không còn ô trống gần các xe để đặt hiệu ứng hôm nay.',
+        'There is no open space near the caravans for an effect today.',
+      );
+      return;
+    }
+
+    _routeMarks[space] = type;
+    _dayEventText = _t(bodyVi(space), bodyEn(space));
+  }
+
+  Standing _mostCrowdedStanding(List<Standing> standings) {
+    Standing best = standings.first;
+    int bestCount = _spaces[best.position].length;
+    for (final Standing standing in standings.skip(1)) {
+      final int count = _spaces[standing.position].length;
+      if (count > bestCount) {
+        best = standing;
+        bestCount = count;
+      }
+    }
+    return best;
+  }
+
+  int? _openRouteSpaceNear(int preferred) {
+    final int center = preferred.clamp(1, finishSpace - 1).toInt();
+    const List<int> offsets = <int>[0, 1, -1, 2, -2];
+    for (final int offset in offsets) {
+      final int candidate = center + offset;
+      if (candidate > 0 &&
+          candidate < finishSpace &&
+          !_routeMarks.containsKey(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  void _showDayEventPopupLater() {
+    final String? title = _dayEventTitle;
+    final String? text = _dayEventText;
+    if (title == null || text == null) {
+      return;
+    }
+
+    _waitingForDayEventAck = true;
+    _botTurnTimer?.cancel();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            backgroundColor: _paper,
+            icon: const Icon(Icons.auto_awesome_rounded, color: _spice),
+            title: Text(
+              title,
+              style: const TextStyle(
+                color: _ink,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            content: Text(
+              text,
+              style: const TextStyle(color: _ink, height: 1.35),
+            ),
+            actions: <Widget>[
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _marketTeal,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(_t('Đã rõ', 'Got it')),
+              ),
+            ],
+          );
+        },
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() => _waitingForDayEventAck = false);
+      _scheduleBotTurnIfNeeded();
+    });
   }
 
   bool _canRollCaravan(String caravanId) {
@@ -1337,7 +1466,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     if (_routeMarkDisabled) {
       return;
     }
-    _coins -= 1;
     _routeUsed = true;
     _routeMarks[_selectedSpace] = type;
     _addLog(
@@ -1406,7 +1534,11 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   }
 
   void _scheduleBotTurnIfNeeded() {
-    if (!mounted || _raceOver || _turnOrder.isEmpty || _isHumanTurn) {
+    if (!mounted ||
+        _raceOver ||
+        _waitingForDayEventAck ||
+        _turnOrder.isEmpty ||
+        _isHumanTurn) {
       _botTurnTimer?.cancel();
       _botThinking = false;
       return;
@@ -1584,7 +1716,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
   }
 
   bool _tryRivalRouteMark(Rival rival) {
-    if (rival.routeUsed || rival.coins < 1) {
+    if (rival.routeUsed) {
       return false;
     }
 
@@ -1599,7 +1731,6 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       return false;
     }
 
-    rival.coins -= 1;
     rival.routeUsed = true;
     _routeMarks[space] = type;
     _addLog(
@@ -1698,6 +1829,8 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
     _day += 1;
     _bag = newWindBag();
     _lastWind = null;
+    _dayEventTitle = null;
+    _dayEventText = null;
     _windRolls = <String, int>{};
     _routeMarks = <int, RouteMarkType>{};
     _routeUsed = false;
@@ -1713,6 +1846,7 @@ class _CaravanGamePageState extends State<CaravanGamePage> {
       ),
       kind: 'leg_started',
     );
+    _startDayEvent(showPopup: true);
   }
 
   void _resolveFinalContracts(
@@ -2498,97 +2632,272 @@ class _MarketBetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.58),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: caravan.color.withOpacity(0.35)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Container(
-                  height: 16,
-                  width: 16,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: caravan.color,
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                  child: Text(
-                    '$rank',
-                    style: TextStyle(
-                      color: caravan.accent,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+    final String shortName = _shortCaravanName(caravan.name);
+
+    return Tooltip(
+      message: caravan.name,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: caravan.color.withOpacity(0.24),
+              blurRadius: 9,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _CaravanDepotPainter(caravan: caravan),
                 ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    caravan.name.split(' ').first,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+              ),
+              Positioned(
+                left: 5,
+                top: 5,
+                child: _DepotRankBadge(
+                  rank: rank,
+                  color: caravan.color,
+                  accent: caravan.accent,
                 ),
-                _DiceFace(
+              ),
+              Positioned(
+                right: 5,
+                top: 5,
+                child: _DiceFace(
                   value: dice,
                   color: caravan.color,
                   rolling: isRolling,
                   rollTick: rollTick,
                 ),
-              ],
-            ),
-            const Spacer(),
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: _MarketCardButton(
-                    icon: Icons.casino_rounded,
-                    tooltip: rollLabel,
-                    enabled: canRoll,
-                    onPressed: onRoll,
-                    color: caravan.color,
-                    filled: true,
-                    height: 17,
-                  ),
+              ),
+              Positioned(
+                left: 5,
+                right: 5,
+                top: 22,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(caravan.icon, size: 15, color: Colors.white),
+                    const SizedBox(height: 1),
+                    Text(
+                      shortName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        shadows: <Shadow>[
+                          Shadow(
+                            blurRadius: 4,
+                            color: Color(0x7717202A),
+                            offset: Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 3),
-                Expanded(
-                  child: _MarketCardButton(
-                    icon: Icons.flag_rounded,
-                    tooltip: legLabel,
-                    enabled: canLeg,
-                    onPressed: onLeg,
-                    height: 17,
-                  ),
+              ),
+              Positioned(
+                left: 5,
+                right: 5,
+                bottom: 5,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _MarketCardButton(
+                        icon: Icons.casino_rounded,
+                        tooltip: rollLabel,
+                        enabled: canRoll,
+                        onPressed: onRoll,
+                        color: caravan.color,
+                        filled: true,
+                        height: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: _MarketCardButton(
+                        icon: Icons.flag_rounded,
+                        tooltip: legLabel,
+                        enabled: canLeg,
+                        onPressed: onLeg,
+                        height: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: _MarketCardButton(
+                        icon: Icons.emoji_events_rounded,
+                        tooltip: finalLabel,
+                        enabled: canFinal,
+                        onPressed: onFinal,
+                        height: 18,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 3),
-                Expanded(
-                  child: _MarketCardButton(
-                    icon: Icons.emoji_events_rounded,
-                    tooltip: finalLabel,
-                    enabled: canFinal,
-                    onPressed: onFinal,
-                    height: 17,
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _shortCaravanName(String name) {
+    final List<String> parts = name.split(' ');
+    if (parts.length < 2) {
+      return name;
+    }
+    return '${parts.first} ${parts[1].substring(0, 1)}.';
+  }
+}
+
+class _DepotRankBadge extends StatelessWidget {
+  const _DepotRankBadge({
+    required this.rank,
+    required this.color,
+    required this.accent,
+  });
+
+  final int rank;
+  final Color color;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 16,
+      width: 16,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: Colors.white.withOpacity(0.56)),
+      ),
+      child: Text(
+        '$rank',
+        style: TextStyle(
+          color: accent,
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _CaravanDepotPainter extends CustomPainter {
+  const _CaravanDepotPainter({required this.caravan});
+
+  final Caravan caravan;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final RRect body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, size.height * 0.22, size.width, size.height * 0.78),
+      const Radius.circular(8),
+    );
+    final Paint bodyPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[
+          _paper.withOpacity(0.98),
+          const Color(0xFFFFE4A8).withOpacity(0.92),
+        ],
+      ).createShader(body.outerRect);
+    canvas.drawRRect(body, bodyPaint);
+
+    final Path roof = Path()
+      ..moveTo(0, size.height * 0.30)
+      ..lineTo(size.width * 0.18, size.height * 0.04)
+      ..quadraticBezierTo(
+        size.width * 0.50,
+        -size.height * 0.03,
+        size.width * 0.82,
+        size.height * 0.04,
+      )
+      ..lineTo(size.width, size.height * 0.30)
+      ..close();
+    final Paint roofPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[
+          caravan.accent.withOpacity(0.96),
+          caravan.color,
+          Color.lerp(caravan.color, _ink, 0.22)!,
+        ],
+        stops: const <double>[0, 0.58, 1],
+      ).createShader(Offset.zero & size);
+    canvas.drawPath(roof, roofPaint);
+
+    final Path roofShade = Path()
+      ..moveTo(size.width * 0.50, 0)
+      ..lineTo(size.width, size.height * 0.30)
+      ..lineTo(size.width * 0.58, size.height * 0.27)
+      ..close();
+    canvas.drawPath(
+      roofShade,
+      Paint()..color = Colors.black.withOpacity(0.14),
+    );
+
+    final Rect awning = Rect.fromLTWH(
+      size.width * 0.08,
+      size.height * 0.34,
+      size.width * 0.84,
+      size.height * 0.26,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(awning, const Radius.circular(6)),
+      Paint()..color = caravan.color.withOpacity(0.76),
+    );
+
+    final double stripeWidth = awning.width / 5;
+    for (int i = 0; i < 5; i += 2) {
+      canvas.drawRect(
+        Rect.fromLTWH(
+          awning.left + stripeWidth * i,
+          awning.top,
+          stripeWidth,
+          awning.height,
+        ),
+        Paint()..color = Colors.white.withOpacity(0.18),
+      );
+    }
+
+    final Rect platform = Rect.fromLTWH(
+      size.width * 0.07,
+      size.height * 0.73,
+      size.width * 0.86,
+      size.height * 0.18,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(platform, const Radius.circular(7)),
+      Paint()..color = Colors.white.withOpacity(0.44),
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.12, size.height * 0.92),
+      Offset(size.width * 0.88, size.height * 0.92),
+      Paint()
+        ..color = caravan.color.withOpacity(0.35)
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CaravanDepotPainter oldDelegate) {
+    return oldDelegate.caravan != caravan;
   }
 }
 
@@ -2694,109 +3003,6 @@ class _MarketCardButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _TinyMarketStat extends StatelessWidget {
-  const _TinyMarketStat({required this.icon, required this.value});
-
-  final IconData icon;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.52),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(icon, size: 13, color: _marketTeal),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MarketRouteButton extends StatelessWidget {
-  const _MarketRouteButton({
-    required this.icon,
-    required this.color,
-    required this.disabled,
-    required this.onPressed,
-  });
-
-  final IconData icon;
-  final Color color;
-  final bool disabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 25,
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        onPressed: disabled ? null : onPressed,
-        icon: Icon(icon, size: 15),
-        style: IconButton.styleFrom(
-          foregroundColor: color,
-          backgroundColor: Colors.white.withOpacity(0.58),
-          disabledForegroundColor: _muted.withOpacity(0.42),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeaderChip extends StatelessWidget {
-  const _HeaderChip({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1C6),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33B98543)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 13, color: _spice),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -3428,6 +3634,236 @@ class _RowCard extends StatelessWidget {
           const SizedBox(width: 8),
           trailing,
         ],
+      ),
+    );
+  }
+}
+
+class _RouteActionCard extends StatelessWidget {
+  const _RouteActionCard({
+    required this.title,
+    required this.selectedLabel,
+    required this.status,
+    required this.canPlace,
+    required this.onBoost,
+    required this.onSnare,
+    required this.boostLabel,
+    required this.snareLabel,
+  });
+
+  final String title;
+  final String selectedLabel;
+  final String status;
+  final bool canPlace;
+  final VoidCallback onBoost;
+  final VoidCallback onSnare;
+  final String boostLabel;
+  final String snareLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final bool compact = constraints.maxHeight < 78;
+        final double buttonHeight = compact ? 20 : 24;
+        final String tooltip = '$selectedLabel\n$status';
+
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                blurRadius: 10,
+                color: Color(0x2417202A),
+                offset: Offset(0, 5),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          Color(0xFF153E49),
+                          Color(0xFF236C63),
+                          Color(0xFFE1A64D),
+                        ],
+                        stops: <double>[0, 0.68, 1],
+                      ),
+                      border: Border.all(color: Colors.white.withOpacity(0.28)),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: -12,
+                  bottom: -10,
+                  child: Icon(
+                    Icons.route_rounded,
+                    color: Colors.white.withOpacity(0.12),
+                    size: compact ? 44 : 58,
+                  ),
+                ),
+                Positioned(
+                  left: 5,
+                  top: 5,
+                  right: 5,
+                  height: compact ? 16 : 19,
+                  child: Tooltip(
+                    message: tooltip,
+                    child: Row(
+                      children: <Widget>[
+                        Icon(
+                          Icons.add_road_rounded,
+                          color: Colors.white.withOpacity(0.92),
+                          size: compact ? 12 : 14,
+                        ),
+                        const SizedBox(width: 3),
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: compact ? 8.5 : 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 5,
+                  right: 5,
+                  top: compact ? 22 : 27,
+                  bottom: buttonHeight + (compact ? 7 : 9),
+                  child: Tooltip(
+                    message: tooltip,
+                    child: Center(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          selectedLabel,
+                          maxLines: 1,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 5,
+                  right: 5,
+                  bottom: 5,
+                  height: buttonHeight,
+                  child: Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: _RouteMarkButton(
+                          label: '+1',
+                          icon: Icons.arrow_upward_rounded,
+                          color: _oasisGreen,
+                          tooltip: boostLabel,
+                          height: buttonHeight,
+                          onPressed: canPlace ? onBoost : null,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: _RouteMarkButton(
+                          label: '-1',
+                          icon: Icons.arrow_downward_rounded,
+                          color: _spice,
+                          tooltip: snareLabel,
+                          height: buttonHeight,
+                          onPressed: canPlace ? onSnare : null,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RouteMarkButton extends StatelessWidget {
+  const _RouteMarkButton({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.height,
+    required this.onPressed,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final double height;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onPressed != null;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: enabled ? Colors.white : Colors.white.withOpacity(0.38),
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(7),
+          child: Container(
+            height: height,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(
+                color: enabled ? color.withOpacity(0.45) : Colors.transparent,
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    icon,
+                    color: enabled ? color : _muted.withOpacity(0.55),
+                    size: 13,
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: enabled ? color : _muted.withOpacity(0.55),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

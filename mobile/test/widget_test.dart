@@ -33,6 +33,10 @@ void main() {
     await tester.tap(find.text('Play with Bot'));
     await tester.pumpAndSettle();
 
+    expect(find.byIcon(Icons.auto_awesome_rounded), findsOneWidget);
+    await tester.tap(find.text('Đã rõ'));
+    await tester.pumpAndSettle();
+
     expect(find.text('VI'), findsOneWidget);
     expect(find.text('EN'), findsOneWidget);
     expect(find.byIcon(Icons.local_shipping_rounded), findsWidgets);
@@ -61,7 +65,6 @@ void main() {
     expect(find.text('Sổ cái'), findsOneWidget);
     expect(find.textContaining('#'), findsWidgets);
     expect(find.textContaining('Ngày 1'), findsWidgets);
-    expect(find.textContaining('vốn đầu'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey<String>('rail-exit')));
     await tester.pumpAndSettle();
